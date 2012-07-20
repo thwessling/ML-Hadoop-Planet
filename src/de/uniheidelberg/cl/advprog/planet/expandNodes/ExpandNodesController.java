@@ -1,5 +1,7 @@
 package de.uniheidelberg.cl.advprog.planet.expandNodes;
-import java.io.IOException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Text;
@@ -7,31 +9,32 @@ import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.util.Tool;
 
 
-public class ExpandNodesController {
+public class ExpandNodesController  extends Configured implements Tool{
 
-		/**
-		 * The main driver for word count map/reduce program. Invoke this method to
-		 * submit the map/reduce job.
-		 * 
-		 * @throws IOException
-		 *             When there is communication problems with the job tracker.
-		 */
-		public static void main(String[] args) throws Exception {
-			JobConf conf = new JobConf(ExpandNodesMapper.class);
-			conf.setJobName("pairs, custom RecordReader + modif. LineReader");
+	public int run(String[] args) throws Exception {
+        // Configuration processed by ToolRunner
+        Configuration conf = getConf();
+        
+        // Create a JobConf using the processed conf
+        JobConf job = new JobConf(conf, ExpandNodesController.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(DoubleWritable.class);
+        // Process custom command-line options
+        Path out = new Path(args[1]);
+        
+        // Specify various job-specific parameters     
+        job.setJobName("my-app");
+        FileInputFormat.setInputPaths(job, args[0]);
+        FileOutputFormat.setOutputPath(job, out);
+        job.setMapperClass(ExpandNodesMapper.class);
+        job.setReducerClass(ExpandNodesReducer.class);
 
-			conf.setOutputKeyClass(Text.class);
-			conf.setOutputValueClass(DoubleWritable.class);
-
-			conf.setMapperClass(ExpandNodesMapper.class);
-			conf.setReducerClass(ExpandNodesReducer.class);
-
-		
-			FileInputFormat.setInputPaths(conf, args[0]);
-			FileOutputFormat.setOutputPath(conf, new Path(args[1]));
-
-			JobClient.runJob(conf);
-		}
+        // Submit the job, then poll for progress until the job is complete
+        JobClient.runJob(job);
+        return 0;
+      }
+	
 }
