@@ -1,12 +1,24 @@
 package de.uniheidelberg.cl.advprog.planet.controller;
 
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapreduce.filecache.DistributedCache;
+import org.apache.hadoop.util.ToolRunner;
 
 
 import de.uniheidelberg.cl.advprog.planet.expandNodes.ExpandNodesController;
 import de.uniheidelberg.cl.advprog.planet.structures.TreeModel;
+import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
 import de.uniheidelberg.cl.advprog.planet.tree.Node;
 
 public class MainControllerThread extends Thread {
@@ -26,8 +38,32 @@ public class MainControllerThread extends Thread {
 		this.inMemQ = new ArrayList<Node>();
 	}
 	
+	private static void serializeModelToDFS(DecisionTree model) throws IOException, URISyntaxException {
+		JobConf conf = new JobConf();
+		FileSystem fs = FileSystem.get(conf);
+		Path hdfsPath = new Path("tree_model.ser");
+
+		FileOutputStream fos = null;
+		ObjectOutputStream out = null;
+		try 	{
+			fos = new FileOutputStream("tree_model1.ser");
+		    out = new ObjectOutputStream(fos);
+		    out.writeObject(model);
+		    out.close();
+		} catch(IOException ex) {
+			ex.printStackTrace();
+		}
+		// upload the file to hdfs. Overwrite any existing copy.
+		fs.copyFromLocalFile(false, true, new Path("tree_model1.ser"),
+				hdfsPath);
+
+		DistributedCache.addCacheFile(new URI("tree_model1.ser"), conf);
+	}
+	
 	public void startJob() throws Exception {
-		ExpandNodesController.main(new String[]{"test", "test"});
+		//ToolRunner.run(new ExpandNodesController(), new String[]{"test", "test_out"});
+		DecisionTree model = new DecisionTree();
+		MainControllerThread.serializeModelToDFS(model);
 	}
 	
 	@Override
