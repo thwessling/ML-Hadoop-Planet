@@ -4,21 +4,26 @@ package de.uniheidelberg.cl.advprog.planet.controller;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.hadoop.mapred.JobClient;
-import org.apache.hadoop.mapred.JobConf;
 
 import de.uniheidelberg.cl.advprog.planet.expandNodes.ExpandNodesController;
 import de.uniheidelberg.cl.advprog.planet.structures.TreeModel;
+import de.uniheidelberg.cl.advprog.planet.tree.Node;
 
 public class MainControllerThread extends Thread {
 
 	TreeModel model;
-	List<String> mrq;
-	List<String> inMemQ;
+	/**
+	 * Nodes for which D* is too large to fit in memory.
+	 */
+	List<Node> mrq;
+	/**
+	 * Nodes for which D* fits in memory.
+	 */
+	List<Node> inMemQ;
 	
 	public MainControllerThread() {
-		this.mrq  = new ArrayList<String>();
-		this.inMemQ = new ArrayList<String>();
+		this.mrq  = new ArrayList<Node>();
+		this.inMemQ = new ArrayList<Node>();
 	}
 	
 	public void startJob() throws Exception {
