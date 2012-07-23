@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.StringTokenizer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
@@ -24,6 +25,7 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
 import de.uniheidelberg.cl.advprog.planet.io.Serializer;
+import de.uniheidelberg.cl.advprog.planet.tree.BranchingNode;
 import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
 
 /**
@@ -62,7 +64,14 @@ public class ExpandNodesMapper extends MapReduceBase implements
 			// extract and remove the class label
 			int label = Integer.parseInt(elems.get(elems.size()-1));
 			elems.remove(elems.size()-1);
-			output.collect(new Text(elems.toString()), new DoubleWritable(0.0));
+			
+			// get splits
+			Set<Double> values = ((BranchingNode) this.tree.getNodeById(this.featureIdx)).getAtt().getValues();
+			for (Double val : values) {
+				output.collect(new Text(String.valueOf(this.featureIdx)), new DoubleWritable(val));
+			}
+			
+			
 			// do some computation
 //			if (!this.tree.isFeatureActive(this.featureIdx, Integer.valueOf(elems.get(0))))
 //				return;

@@ -11,17 +11,17 @@ public class Attribute implements Serializable{
 	private static final long serialVersionUID = 8677216573475157715L;
 	private String attributeName;
 	private boolean isOrdered;
-	private Set<String> values;
+	private Set<Double> values;
 	
 	public Attribute(String name) {
 		this.attributeName = name;
-		this.values = new TreeSet<String>();
+		this.values = new TreeSet<Double>();
 	}
 	
-	public void addValue(String value) {
+	public void addValue(double value) {
 		this.values.add(value);
 	}
-	public Set<String> getValues() {
+	public Set<Double> getValues() {
 		return values;
 	}
 	public String getAttributeName() {
