@@ -1,9 +1,14 @@
 package de.uniheidelberg.cl.advprog.planet.tree;
 
+import java.io.Serializable;
 import java.util.Set;
 import java.util.TreeSet;
 
-public class Attribute {
+public class Attribute implements Serializable{
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 8677216573475157715L;
 	private String attributeName;
 	private boolean isOrdered;
 	private Set<String> values;

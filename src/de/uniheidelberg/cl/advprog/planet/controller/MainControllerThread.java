@@ -1,13 +1,18 @@
 package de.uniheidelberg.cl.advprog.planet.controller;
 
 
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -17,7 +22,9 @@ import org.apache.hadoop.util.ToolRunner;
 
 
 import de.uniheidelberg.cl.advprog.planet.expandNodes.ExpandNodesController;
+import de.uniheidelberg.cl.advprog.planet.io.Serializer;
 import de.uniheidelberg.cl.advprog.planet.structures.TreeModel;
+import de.uniheidelberg.cl.advprog.planet.tree.BranchingNode;
 import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
 import de.uniheidelberg.cl.advprog.planet.tree.Node;
 
@@ -33,37 +40,41 @@ public class MainControllerThread extends Thread {
 	 */
 	List<Node> inMemQ;
 	
+	Queue<String> features;
+	
 	public MainControllerThread() {
 		this.mrq  = new ArrayList<Node>();
 		this.inMemQ = new ArrayList<Node>();
 	}
 	
-	private static void serializeModelToDFS(DecisionTree model) throws IOException, URISyntaxException {
-		JobConf conf = new JobConf();
-		FileSystem fs = FileSystem.get(conf);
-		Path hdfsPath = new Path("tree_model.ser");
-
-		FileOutputStream fos = null;
-		ObjectOutputStream out = null;
-		try 	{
-			fos = new FileOutputStream("tree_model1.ser");
-		    out = new ObjectOutputStream(fos);
-		    out.writeObject(model);
-		    out.close();
-		} catch(IOException ex) {
-			ex.printStackTrace();
+	private DecisionTree createInitialModel() throws IOException {
+		DecisionTree tree = new DecisionTree();
+		BufferedReader br = new BufferedReader(new FileReader("data/features.txt"));
+		String[] featuresString = br.readLine().split(",");
+		this.features = new LinkedList<String>();
+		for (String f : featuresString) {
+			this.features.add(f);
 		}
-		// upload the file to hdfs. Overwrite any existing copy.
-		fs.copyFromLocalFile(false, true, new Path("tree_model1.ser"),
-				hdfsPath);
-
-		DistributedCache.addCacheFile(new URI("tree_model1.ser"), conf);
+		Node n = new BranchingNode(this.features.poll());
+		tree.setRoot(n);
+		n.setFeatureIndex(0);
+		this.mrq.add(n);
+		
+		return tree;
 	}
 	
 	public void startJob() throws Exception {
-		//ToolRunner.run(new ExpandNodesController(), new String[]{"test", "test_out"});
-		DecisionTree model = new DecisionTree();
-		MainControllerThread.serializeModelToDFS(model);
+		DecisionTree model = createInitialModel();
+		JobConf conf = new JobConf();
+		Serializer.serializeModelToDFS(model, conf);
+		// start mr_expandNodes
+		ToolRunner.run(new ExpandNodesController(this.mrq.get(0).getFeatureIndex()), new String[]{"test", "test_out"});
+		// read results and determine best split for node
+		
+		// add the split information to the model file
+		
+		// compute next nodes to be expanded
+		
 	}
 	
 	@Override

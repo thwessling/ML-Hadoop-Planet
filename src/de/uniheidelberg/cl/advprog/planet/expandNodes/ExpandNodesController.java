@@ -11,9 +11,18 @@ import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.util.Tool;
 
+import de.uniheidelberg.cl.advprog.planet.structures.TreeModel;
+
 
 public class ExpandNodesController  extends Configured implements Tool{
 
+	private TreeModel model;
+	private int featureIndex;
+	
+	public ExpandNodesController(int idx) {
+		this.featureIndex = idx;
+	}
+	
 	public int run(String[] args) throws Exception {
         // Configuration processed by ToolRunner
         Configuration conf = getConf();
@@ -27,6 +36,7 @@ public class ExpandNodesController  extends Configured implements Tool{
         
         // Specify various job-specific parameters     
         job.setJobName("my-app");
+        job.set("FeatureIndex", String.valueOf(this.featureIndex));
         FileInputFormat.setInputPaths(job, args[0]);
         FileOutputFormat.setOutputPath(job, out);
         job.setMapperClass(ExpandNodesMapper.class);
