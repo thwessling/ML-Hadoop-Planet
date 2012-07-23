@@ -41,6 +41,7 @@ public class ExpandNodesMapper extends MapReduceBase implements
 		public void configure(JobConf job) {
 			try {
 				this.tree = Serializer.readModelFromDFS();
+				System.out.println(this.tree.getRoot().toString());
 			} catch (IOException e) {
 				e.printStackTrace();
 			} catch (ClassNotFoundException e) {
