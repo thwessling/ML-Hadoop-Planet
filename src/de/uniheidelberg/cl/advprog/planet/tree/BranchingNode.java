@@ -2,14 +2,14 @@ package de.uniheidelberg.cl.advprog.planet.tree;
 
 public class BranchingNode extends Node {
 	private Attribute att;
-	private String split;
+	private double split;
 	
 	public BranchingNode(String name) {
 		super(name);
 		this.isLeaf = false;
 	}
 	
-	public String getSplit() {
+	public double getSplit() {
 		return split;
 	}
 	public Attribute getAtt() {

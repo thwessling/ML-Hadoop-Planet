@@ -2,6 +2,7 @@ package de.uniheidelberg.cl.advprog.planet.tree;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -15,12 +16,14 @@ public class DecisionTree implements Serializable {
 	private Set<Node> nodeSet;
 	private Set<Attribute> attributeSet;
 	private Node root;
+	private HashMap<Integer, Node> idxToNode;
 	
 	
 	
 	public DecisionTree() {
 		nodeSet = new HashSet<Node>();
 		attributeSet = new HashSet<Attribute>();
+		this.idxToNode = new HashMap<Integer, Node>();
 	}
 	
 	public void setRoot(Node root) {
@@ -31,38 +34,46 @@ public class DecisionTree implements Serializable {
 		return root;
 	}
 	
+	public Node getNodeById(int id) {
+		return this.idxToNode.get(id);
+	}
+	
 	public void addNode(Node n, Node mother) {
 		this.nodeSet.add(n);
 		n.setMother(mother);
 		mother.addDaughter(n);
+		this.idxToNode.put(n.getFeatureIndex(), n);
 	}
 	
 	public void addAttribute(Attribute a) { 
 		this.attributeSet.add(a);
 	}
 	
-	private Node getNode(Node mother, int idx, double value) {
-		for (Node d : mother.getDaughters()) {
-				if (d.getFeatureIndex() == idx) {
-					BranchingNode node = (BranchingNode) d;
-					
-				}
-		}
-	}
 	
-	private boolean traverseTree(Node n, int feature, int value) {
 	
 	public boolean isFeatureActive(double[] featureValues, int featureIdx, double value) {
+		Node motherNode = this.root;
 		// go down the tree up to featureIdx
 		for (int i = 0; i < featureIdx - 1; i++) {
-			
+			if (motherNode.getFeatureIndex() == featureIdx) {
+				BranchingNode branchingMother = (BranchingNode) motherNode;
+				if (featureValues[i] < branchingMother.getSplit()) {
+					// go down left branch
+					motherNode = branchingMother.getDaughters().get(0);
+				} else {
+					motherNode = branchingMother.getDaughters().get(1);
+				}
+			}
 		}
-		return true;
+		if (motherNode.getFeatureIndex() == featureIdx) 
+			return true;
+		else 
+			return false;
+		
 	}
+	
 		
 	
 		
-	}
-	
 	
 }
