@@ -23,34 +23,48 @@ import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
+import de.uniheidelberg.cl.advprog.planet.io.Serializer;
+import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
+
 /**
  * Word count with relative frequencies. Implemented using the pairs approach.
  */
 public class ExpandNodesMapper extends MapReduceBase implements
 	Mapper<LongWritable, Text, Text, DoubleWritable>  {
 
-
+		DecisionTree tree;
+		private Integer featureIdx;
+		
+		@Override
+		public void configure(JobConf job) {
+			try {
+				this.tree = Serializer.readModelFromDFS();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} catch (ClassNotFoundException e) {
+				e.printStackTrace();
+			}
+			// read node to be processed
+			this.featureIdx = Integer.parseInt(job.get("FeatureIndex"));
+			System.out.println("Processing feature " + this.featureIdx);
+		}
+		
 		// return mapping from word pairs to 1
-
 		public void map(LongWritable key, Text value,
 				OutputCollector<Text, DoubleWritable> output, Reporter reporter)
 				throws IOException {
 			String line = value.toString();
-			System.out.println(value);
-			StringTokenizer itr = new StringTokenizer(line);
+			StringTokenizer itr = new StringTokenizer(line,",");
 			List<String> elems = new ArrayList<String>();
 			while (itr.hasMoreTokens())
 				elems.add(itr.nextToken());
-			int counter = 0;
-			// iterate over all elements in one transaction
-			for (int i = 0; i < elems.size(); i++) {
-				// iterate over all paired elements and add +1 for each element
-				for (int z = i + 1; z < elems.size(); z++) {
-					counter += 1;
-					String secondToken = elems.get(z);
-					output.collect(new Text(secondToken), new DoubleWritable(1.0));
-				}
-			}
-			System.out.println("Pairs: " + counter);
+			
+			// extract and remove the class label
+			int label = Integer.parseInt(elems.get(elems.size()-1));
+			elems.remove(elems.size()-1);
+			output.collect(new Text(elems.toString()), new DoubleWritable(0.0));
+			// do some computation
+//			if (!this.tree.isFeatureActive(this.featureIdx, Integer.valueOf(elems.get(0))))
+//				return;
 		}
 }
