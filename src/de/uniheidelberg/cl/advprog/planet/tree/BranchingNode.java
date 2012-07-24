@@ -15,5 +15,9 @@ public class BranchingNode extends Node {
 	public Attribute getAtt() {
 		return att;
 	}
+	
+	public void setAtt(Attribute att) {
+		this.att = att;
+	}
 
 }
