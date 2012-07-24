@@ -4,7 +4,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+
 
 public class DecisionTree implements Serializable {
 
@@ -14,7 +16,7 @@ public class DecisionTree implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	private Set<Node> nodeSet;
-	private Set<Attribute> attributeSet;
+	private List<Attribute> attributeSet;
 	private Node root;
 	private HashMap<Integer, Node> idxToNode;
 	
@@ -22,7 +24,7 @@ public class DecisionTree implements Serializable {
 	
 	public DecisionTree() {
 		nodeSet = new HashSet<Node>();
-		attributeSet = new HashSet<Attribute>();
+		attributeSet = new ArrayList<Attribute>();
 		this.idxToNode = new HashMap<Integer, Node>();
 	}
 	
@@ -41,14 +43,17 @@ public class DecisionTree implements Serializable {
 	public void addNode(Node n, Node mother) {
 		this.nodeSet.add(n);
 		n.setMother(mother);
-		mother.addDaughter(n);
+		if (mother != null)
+			mother.addDaughter(n);
 		this.idxToNode.put(n.getFeatureIndex(), n);
 	}
 	
 	public void addAttribute(Attribute a) { 
 		this.attributeSet.add(a);
 	}
-	
+	public List<Attribute> getAttributeSet() {
+		return attributeSet;
+	}
 	
 	
 	public boolean isFeatureActive(double[] featureValues, int featureIdx, double value) {
