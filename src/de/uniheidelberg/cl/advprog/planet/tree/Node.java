@@ -48,4 +48,9 @@ public class Node implements Serializable{
 		return attributeName;
 	}
 	
+	@Override
+	public String toString() {
+		return String.valueOf(this.featureIndex);
+	}
+	
 }

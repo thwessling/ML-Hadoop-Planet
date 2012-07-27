@@ -50,19 +50,20 @@ public class DecisionTree implements Serializable {
 	
 	public void addAttribute(Attribute a) { 
 		this.attributeSet.add(a);
+		a.setIndex(this.attributeSet.size());
 	}
 	public List<Attribute> getAttributeSet() {
 		return attributeSet;
 	}
 	
 	
-	public boolean isFeatureActive(double[] featureValues, int featureIdx, double value) {
+	public boolean isFeatureActive(Double[] doubles, int featureIdx, double value) {
 		Node motherNode = this.root;
 		// go down the tree up to featureIdx
 		for (int i = 0; i < featureIdx - 1; i++) {
 			if (motherNode.getFeatureIndex() == featureIdx) {
 				BranchingNode branchingMother = (BranchingNode) motherNode;
-				if (featureValues[i] < branchingMother.getSplit()) {
+				if (doubles[i] < branchingMother.getSplit()) {
 					// go down left branch
 					motherNode = branchingMother.getDaughters().get(0);
 				} else {

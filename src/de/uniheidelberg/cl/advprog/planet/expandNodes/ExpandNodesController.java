@@ -12,6 +12,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.util.Tool;
 
 import de.uniheidelberg.cl.advprog.planet.io.Serializer;
+import de.uniheidelberg.cl.advprog.planet.structures.ThreeValueTuple;
 import de.uniheidelberg.cl.advprog.planet.structures.TreeModel;
 import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
 
@@ -34,8 +35,8 @@ public class ExpandNodesController  extends Configured implements Tool{
 	    Serializer.serializeModelToDFS(tree, conf);
 	    
 	    // specify output types
-	    conf.setOutputKeyClass(Text.class);
-	    conf.setOutputValueClass(DoubleWritable.class);
+	    conf.setOutputKeyClass(NodeFeatSplitKey.class);
+	    conf.setOutputValueClass(ThreeValueTuple.class);
 	    conf.setJobName("my-app-advanced");
 	    conf.set("FeatureIndex", String.valueOf(this.featureIndex));
 	    FileInputFormat.setInputPaths(conf, args[0]);
