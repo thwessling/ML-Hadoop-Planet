@@ -16,10 +16,13 @@ public class Attribute implements Serializable{
 	private boolean isOrdered;
 	private Set<Double> values;
 	private Split split;
+	private Set<Split> possibleSplits;
+	private int index;
 	
-	public Attribute(String name) {
+	public Attribute(String name, int index) {
 		this.attributeName = name;
 		this.values = new TreeSet<Double>();
+		this.index = index;
 	}
 	
 	public void addValue(double value) {
@@ -36,17 +39,21 @@ public class Attribute implements Serializable{
 	}
 	
 	public Set<Split> getPossibleSplits() {
-		Set<Split> possibleSplits = new HashSet<Split>();
+		if (this.possibleSplits != null)
+			return this.possibleSplits;
+		this.possibleSplits = new HashSet<Split>();
 		if (this.isOrdered) {
 			for (double num : this.values) {
-				Split s = new Split(SPLITTYPE.NUMERIC);
+				Split s = new Split(SPLITTYPE.NUMERIC, this.index);
 				s.setOrderedSplit(num);
 				possibleSplits.add(s);
 			}
 		}
-		return possibleSplits;
+		return this.possibleSplits;
 	}
-	
+	public void setIndex(int index) {
+		this.index = index;
+	}
 	public boolean isOrdered() {
 		return isOrdered;
 	}

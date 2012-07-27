@@ -24,7 +24,6 @@ import org.apache.hadoop.util.ToolRunner;
 
 
 import de.uniheidelberg.cl.advprog.planet.expandNodes.ExpandNodesController;
-import de.uniheidelberg.cl.advprog.planet.expandNodes.ExpandNodesController;
 import de.uniheidelberg.cl.advprog.planet.io.Serializer;
 import de.uniheidelberg.cl.advprog.planet.structures.TreeModel;
 import de.uniheidelberg.cl.advprog.planet.tree.Attribute;
@@ -58,7 +57,7 @@ public class MainControllerThread extends Thread {
 		this.features = new LinkedList<String>();
 		for (String f : featuresString) {
 			// split the feature file and read value range
-			Attribute att = new Attribute(f.split(":")[0]);
+			Attribute att = new Attribute(f.split(":")[0],0);
 			// value range
 			Pattern p = Pattern.compile("([^\\-]+)\\-(.*)");
 			Matcher m = p.matcher(f.split(":")[1]);
@@ -97,14 +96,13 @@ public class MainControllerThread extends Thread {
 		// read results and determine best split for node
 		contr.run(new String[]{"test", "test_out"});
 		// add the split information to the model file
+		//augment.parseOutputFile("");
 		
 		// compute next nodes to be expanded
-		
 	}
 	
 	@Override
 	public void run() {
-		
 		super.run();
 	}
 	
