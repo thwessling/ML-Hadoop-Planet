@@ -31,6 +31,7 @@ public class ExpandNodesReducer extends MapReduceBase implements
 	}
 	
 	
+	
 	public void reduce(NodeFeatSplitKey key, Iterator<ThreeValueTuple> values,
 			OutputCollector<NodeFeatSplitKey, ThreeValueTuple> output,
 			Reporter reporter) throws IOException {
@@ -52,32 +53,42 @@ public class ExpandNodesReducer extends MapReduceBase implements
 				val_old.add(val);
 				marginals.put(key.getNodeId(), val_old);
 			}
-		} else {
-			while (values.hasNext()) {
-				ThreeValueTuple val = values.next();
-				ThreeValueTuple val_old = splitMetrics.get(key);
-				if (val_old != null) {
-					//System.out.printf(val + " +  " + val_old);
-					val_old.add(val);
-					splitMetrics.put(key, val_old);
-					System.out.printf(" = %s\n", splitMetrics.get(key));
-				} else {
-					splitMetrics.put(key, val);
-				}
+			for (Integer i : marginals.keySet()) {
+				output.collect(new NodeFeatSplitKey(i, -1, ""), marginals.get(i));
 			}
+		} else {
+			ThreeValueTuple val = values.next();
+			output.collect(key, val);
+			System.out.println(key.toString() + " value: " + val.toString() + " variance reduction: " + this.varianceReduction(val, marginals.get(key.getNodeId())));
+//			while (values.hasNext()) {
+//				ThreeValueTuple val = values.next();
+//				ThreeValueTuple val_old = splitMetrics.get(key);
+//				if (val_old != null) {
+//					System.out.printf(val + " +  " + val_old);
+//					val_old.add(val);
+//					splitMetrics.put(key, val_old);
+//					System.out.printf(" = %s\n", splitMetrics.get(key));
+//				} else {
+//					splitMetrics.put(key, val);
+//				}
+//			}
 		}
-		this.output = output;
 	}
 	
-	@Override
-	public void close() throws IOException {
-		for (Integer i : marginals.keySet()) {
-			output.collect(new NodeFeatSplitKey(i, -1, ""), marginals.get(i));
-		}
-		for (NodeFeatSplitKey split : splitMetrics.keySet())  {
-			output.collect(split, splitMetrics.get(split));
-		}
-		super.close();
+	private double variance(ThreeValueTuple branch) {
+		double meanOfSquaredSum = branch.getSquareSum() / branch.getInstanceNum();
+		double squaredMean = branch.getLeftBranchSum() / branch.getInstanceNum();
+		return Math.sqrt(meanOfSquaredSum - squaredMean);
+	}
+	
+	private double varianceReduction(ThreeValueTuple leftBranch, ThreeValueTuple marginals) {
+		ThreeValueTuple rightBranch = marginals.minus(leftBranch);
+		double docSize = marginals.getInstanceNum();
+		double docVar = this.variance(marginals);
+		double rightVar = this.variance(rightBranch);
+		double leftVar = this.variance(leftBranch);
+		
+		return docSize * docVar - (leftBranch.getInstanceNum() * leftVar + rightBranch.getInstanceNum() * rightVar);
 	}
 
 }

@@ -50,7 +50,7 @@ public class DecisionTree implements Serializable {
 	
 	public void addAttribute(Attribute a) { 
 		this.attributeSet.add(a);
-		a.setIndex(this.attributeSet.size());
+		a.setIndex(this.attributeSet.size()-1);
 	}
 	public List<Attribute> getAttributeSet() {
 		return attributeSet;
