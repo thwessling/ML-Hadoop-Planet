@@ -61,13 +61,11 @@ public class ExpandNodesMapper extends MapReduceBase implements
 			List<Double> elems = new ArrayList<Double>();
 			while (itr.hasMoreTokens()) {
 				elems.add(Double.parseDouble(itr.nextToken()));
-				System.out.println(elems.get(elems.size()-1));
 			}
 			
 			// extract and remove the class label
 			double label = elems.get(elems.size()-1);
 			elems.remove(elems.size()-1);
-			
 			// get Node 
 			BranchingNode node = (BranchingNode) this.tree.getNodeById(this.featureIdx);
 			// get splits
@@ -101,7 +99,7 @@ public class ExpandNodesMapper extends MapReduceBase implements
 					    s.getFeature(), 
 					    s.getSplitId());
 				output.collect(split, this.splitStats.get(s));
-				System.out.println("Split : " + split + " tuple: " + this.splitStats.get(s));
+//				System.out.println("Split : " + split + " tuple: " + this.splitStats.get(s));
 			}
 			output.collect(new NodeFeatSplitKey(this.featureIdx, -1, "*"), this.marginalStats);
 			super.close();
@@ -109,7 +107,7 @@ public class ExpandNodesMapper extends MapReduceBase implements
 		
 		private ThreeValueTuple computeSplitMetrics(Double val, double label, Split s) {
 			if (val < s.getThreshold()) {
-				System.out.println("Value " + val + ", threshold " + s.getThreshold());
+//				System.out.println("Value " + val + ", threshold " + s.getThreshold() + " label: " + label);
 				ThreeValueTuple tuple = new ThreeValueTuple(label, Math.pow(label,2), 1.0);
 				return tuple;
 			}
