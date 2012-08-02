@@ -19,13 +19,15 @@ public class ExpandNodesReducer extends MapReduceBase implements
 
 	Map<NodeFeatSplitKey,ThreeValueTuple> splitMetrics;
 	OutputCollector<NodeFeatSplitKey, ThreeValueTuple> output;
-	Map<Node, Split> bestSplits;
+	Map<Integer, NodeFeatSplitKey> bestSplits;
+	Map<NodeFeatSplitKey, Double> splitScores;
 	Map<Integer, ThreeValueTuple> marginals;
 	
 	@Override
 	public void configure(JobConf job) {
 		this.marginals = new HashMap<Integer, ThreeValueTuple>();
-		this.bestSplits = new HashMap<Node, Split>();
+		this.bestSplits = new HashMap<Integer, NodeFeatSplitKey>();
+		this.splitScores = new HashMap<NodeFeatSplitKey, Double>();
 		super.configure(job);
 		this.splitMetrics = new HashMap<NodeFeatSplitKey, ThreeValueTuple>();
 	}
@@ -58,8 +60,16 @@ public class ExpandNodesReducer extends MapReduceBase implements
 			}
 		} else {
 			ThreeValueTuple val = values.next();
-			output.collect(key, val);
+			double varianceReduction = this.varianceReduction(val, marginals.get(key.getNodeId()));
+			// check if there is a higher split
+			if (this.bestSplits.get(key.getNodeId()) == null || 
+					this.splitScores.get(bestSplits.get(key.getNodeId())) < varianceReduction) {
+
+				this.splitScores.put(key, varianceReduction);
+				this.bestSplits.put(key.getNodeId(), key);
+			}
 			System.out.println(key.toString() + " value: " + val.toString() + " variance reduction: " + this.varianceReduction(val, marginals.get(key.getNodeId())));
+			
 //			while (values.hasNext()) {
 //				ThreeValueTuple val = values.next();
 //				ThreeValueTuple val_old = splitMetrics.get(key);
@@ -73,6 +83,16 @@ public class ExpandNodesReducer extends MapReduceBase implements
 //				}
 //			}
 		}
+		this.output = output;
+	}
+	
+	@Override
+	public void close() throws IOException {
+		for (int nodeId : this.bestSplits.keySet()) {
+			output.collect(this.bestSplits.get(nodeId), new ThreeValueTuple(0, 0, 0));
+		}
+		
+		super.close();
 	}
 	
 	private double variance(ThreeValueTuple branch) {

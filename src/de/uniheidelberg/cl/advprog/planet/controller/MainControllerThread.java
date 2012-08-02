@@ -2,6 +2,7 @@ package de.uniheidelberg.cl.advprog.planet.controller;
 
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
@@ -30,6 +31,7 @@ import de.uniheidelberg.cl.advprog.planet.tree.Attribute;
 import de.uniheidelberg.cl.advprog.planet.tree.BranchingNode;
 import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
 import de.uniheidelberg.cl.advprog.planet.tree.Node;
+import de.uniheidelberg.cl.advprog.planet.tree.Split;
 
 public class MainControllerThread extends Thread {
 
@@ -89,7 +91,17 @@ public class MainControllerThread extends Thread {
 		return tree;
 	}
 	
+	private void addResult(int nodeId, DecisionTree tree, Split bestSplit) {
+		// add the best split to the decision tree
+		BranchingNode n = (BranchingNode) tree.getNodeById(nodeId);
+		n.getAtt().setSplit(bestSplit);
+		// compute data set size in left and right branch
+		BranchingNode n_daughter = new BranchingNode("");
+		n.addDaughter(n_daughter);
+	}
+	
 	public void startJob() throws Exception {
+		
 		DecisionTree model = createInitialModel();
 		// start mr_expandNodes
 		ExpandNodesController contr = new ExpandNodesController(this.mrq.get(0).getFeatureIndex(), model);
