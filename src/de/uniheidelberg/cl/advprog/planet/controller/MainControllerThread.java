@@ -2,14 +2,8 @@ package de.uniheidelberg.cl.advprog.planet.controller;
 
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -17,19 +11,13 @@ import java.util.Queue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapreduce.filecache.DistributedCache;
-import org.apache.hadoop.util.ToolRunner;
-
-
 import de.uniheidelberg.cl.advprog.planet.expandNodes.ExpandNodesController;
-import de.uniheidelberg.cl.advprog.planet.io.Serializer;
+import de.uniheidelberg.cl.advprog.planet.structures.ThreeValueTuple;
 import de.uniheidelberg.cl.advprog.planet.structures.TreeModel;
 import de.uniheidelberg.cl.advprog.planet.tree.Attribute;
 import de.uniheidelberg.cl.advprog.planet.tree.BranchingNode;
 import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
+import de.uniheidelberg.cl.advprog.planet.tree.LeafNode;
 import de.uniheidelberg.cl.advprog.planet.tree.Node;
 import de.uniheidelberg.cl.advprog.planet.tree.Split;
 
@@ -91,13 +79,35 @@ public class MainControllerThread extends Thread {
 		return tree;
 	}
 	
-	private void addResult(int nodeId, DecisionTree tree, Split bestSplit) {
+	
+	private void addResult(int nodeId, DecisionTree tree, Split bestSplit, ThreeValueTuple tuple) {
 		// add the best split to the decision tree
 		BranchingNode n = (BranchingNode) tree.getNodeById(nodeId);
 		n.getAtt().setSplit(bestSplit);
 		// compute data set size in left and right branch
-		BranchingNode n_daughter = new BranchingNode("");
-		n.addDaughter(n_daughter);
+		double leftSize = tuple.getInstanceNum();
+		double rightSize = tuple.getInstanceNum();
+		if (leftSize < 30) {
+			LeafNode leaf = new LeafNode("leaf");
+			tree.addNode(leaf, n);
+		} else {
+			BranchingNode n_daughter = new BranchingNode(this.features.poll());
+			n_daughter.setAtt(tree.getAttributeSet().get(0));
+			tree.addNode(n_daughter, n);
+			n.setFeatureIndex(0);
+			this.mrq.add(n);
+		}
+		if (rightSize < 30) {
+			LeafNode leaf = new LeafNode("leaf");
+			tree.addNode(leaf, n);
+		} else {
+			BranchingNode n_daughter = new BranchingNode(this.features.poll());
+			n_daughter.setAtt(tree.getAttributeSet().get(0));
+			tree.addNode(n_daughter, n);
+			n_daughter.setFeatureIndex(0);
+			this.mrq.add(n_daughter);
+		}
+		
 	}
 	
 	public void startJob() throws Exception {
