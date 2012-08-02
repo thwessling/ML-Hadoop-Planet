@@ -52,7 +52,9 @@ public class NodeFeatSplitKey implements WritableComparable<NodeFeatSplitKey> {
 	public int getFeatId() {
 		return featId;
 	}
-	
+	public String getSplitId() {
+		return splitId;
+	}
 	public int getNodeId() {
 		return nodeId;
 	}
