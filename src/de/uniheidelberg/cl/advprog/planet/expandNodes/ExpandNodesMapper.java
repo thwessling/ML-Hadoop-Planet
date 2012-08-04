@@ -11,7 +11,6 @@ import java.util.StringTokenizer;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.MapReduceBase;
 import org.apache.hadoop.mapred.Mapper;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reporter;
@@ -25,37 +24,35 @@ import de.uniheidelberg.cl.advprog.planet.tree.Split;
 /**
  * Word count with relative frequencies. Implemented using the pairs approach.
  */
-public class ExpandNodesMapper extends MapReduceBase implements
-	Mapper<LongWritable, Text, NodeFeatSplitKey, ThreeValueTuple>  {
-
-		OutputCollector<NodeFeatSplitKey, ThreeValueTuple> output;
+public class ExpandNodesMapper implements Mapper<LongWritable, Text, NodeFeatSplitKey, ThreeValueTuple>  {
 		Map<Split, ThreeValueTuple> splitStats;
 		ThreeValueTuple marginalStats;
 		
 		DecisionTree tree;
 		private Integer featureIdx;
-		
+		OutputCollector<NodeFeatSplitKey, ThreeValueTuple> output;
+
 		@Override
-		public void configure(JobConf job) {
+		public void configure(JobConf context) {
 			// read node to be processed
-			this.featureIdx = Integer.parseInt(job.get("FeatureIndex"));
+			this.featureIdx = Integer.parseInt(context.get("FeatureIndex"));
 			System.out.println("Processing feature " + this.featureIdx);
 			this.splitStats = new HashMap<Split, ThreeValueTuple>();
 			this.marginalStats = new ThreeValueTuple(0.0, 0.0, 0.0);
 			try {
-				this.tree = Serializer.readModelFromDFS(job);
+				this.tree = Serializer.readModelFromDFS(context);
 			} catch (IOException e) {
 				e.printStackTrace();
 			} catch (ClassNotFoundException e) {
 				e.printStackTrace();
 			}
 		}
+
 		
-		// return mapping from word pairs to 1
+		
 		public void map(LongWritable key, Text value,
-				OutputCollector<NodeFeatSplitKey, ThreeValueTuple> output, Reporter reporter)
-				throws IOException {
-			this.output = output;
+				OutputCollector<NodeFeatSplitKey, ThreeValueTuple> output,
+				Reporter reporter) throws IOException {
 			String line = value.toString();
 			StringTokenizer itr = new StringTokenizer(line,",");
 			List<Double> elems = new ArrayList<Double>();
@@ -86,25 +83,31 @@ public class ExpandNodesMapper extends MapReduceBase implements
 			}
 			
 			// count marginals
-			
+			this.output = output;
 			this.marginalStats.add(new ThreeValueTuple(label,Math.pow(label, 2),1.0));
 			// do some computation
 //			if (!this.tree.isFeatureActive(elems.toArray(new Double[elems.size()]), this.featureIdx, elems.get(0)));
 		}
 		
-		@Override
-		public void close() throws IOException {
+		public void close() { 
 			for (Split s : this.splitStats.keySet()) {
 				NodeFeatSplitKey split = new NodeFeatSplitKey(s.getFeature(), 
 					    s.getFeature(), 
 					    s.getSplitId());
-				output.collect(split, this.splitStats.get(s));
+				try {
+					this.output.collect(split, this.splitStats.get(s));
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 //				System.out.println("Split : " + split + " tuple: " + this.splitStats.get(s));
 			}
-			output.collect(new NodeFeatSplitKey(this.featureIdx, -1, "*"), this.marginalStats);
-			super.close();
-		}
-		
+			try {
+				this.output.collect(new NodeFeatSplitKey(this.featureIdx, -1, "*"), this.marginalStats);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		};		
+
 		private ThreeValueTuple computeSplitMetrics(Double val, double label, Split s) {
 			if (val < s.getThreshold()) {
 //				System.out.println("Value " + val + ", threshold " + s.getThreshold() + " label: " + label);
@@ -114,5 +117,6 @@ public class ExpandNodesMapper extends MapReduceBase implements
 			return null;
 			    
 		}
+
 		
 }

@@ -9,11 +9,12 @@ import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.TextOutputFormat;
+import org.apache.hadoop.mapred.lib.MultipleOutputs;
 import org.apache.hadoop.util.Tool;
 
 import de.uniheidelberg.cl.advprog.planet.io.Serializer;
 import de.uniheidelberg.cl.advprog.planet.structures.ThreeValueTuple;
-import de.uniheidelberg.cl.advprog.planet.structures.TreeModel;
 import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
 
 
@@ -31,23 +32,28 @@ public class ExpandNodesController  extends Configured implements Tool{
 	@Override
 	public int run(String[] args) throws Exception {
 		JobClient client = new JobClient();
-	    JobConf conf = new JobConf(ExpandNodesController.class);
-	    Serializer.serializeModelToDFS(tree, conf);
-	    
-	    // specify output types
-	    conf.setOutputKeyClass(NodeFeatSplitKey.class);
-	    conf.setOutputValueClass(ThreeValueTuple.class);
-	    conf.setJobName("my-app-advanced");
-	    conf.set("FeatureIndex", String.valueOf(this.featureIndex));
-	    FileInputFormat.setInputPaths(conf, args[0]);
-        FileOutputFormat.setOutputPath(conf, new Path(args[1]));
-        conf.setMapperClass(ExpandNodesMapper.class);
-        conf.setReducerClass(ExpandNodesReducer.class);
-	    
+		JobConf job = new JobConf();
+	    Serializer.serializeModelToDFS(tree, job);
 
-	    client.setConf(conf);
+	    // specify output types
+//	    conf.setOutputKeyClass(NodeFeatSplitKey.class);
+//	    conf.setOutputValueClass(ThreeValueTuple.class);
+	    job.setJobName("my-app-advanced");
+	    job.set("FeatureIndex", String.valueOf(this.featureIndex));
+        job.setMapperClass(ExpandNodesMapper.class);
+        job.setMapOutputKeyClass(NodeFeatSplitKey.class);
+//        job.setOutputKeyClass(NodeFeatSplitKey.class);
+        job.setMapOutputValueClass(ThreeValueTuple.class);
+        job.setReducerClass(ExpandNodesReducer.class);
+	    MultipleOutputs.addNamedOutput(job, "bestModel", TextOutputFormat.class, NodeFeatSplitKey.class, ThreeValueTuple.class);
+	    MultipleOutputs.addNamedOutput(job, "branchCounts", TextOutputFormat.class, Text.class, DoubleWritable.class);
+	    FileInputFormat.setInputPaths(job, args[0]);
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+
+	    client.setConf(job);
 	    try {
-	      JobClient.runJob(conf);
+	      JobClient.runJob(job);
 	    } catch (Exception e) {
 	      e.printStackTrace();
 	    }
