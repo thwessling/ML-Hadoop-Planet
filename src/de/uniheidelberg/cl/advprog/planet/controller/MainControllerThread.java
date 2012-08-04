@@ -33,7 +33,7 @@ public class MainControllerThread extends Thread {
 	 */
 	List<Node> inMemQ;
 	
-	Queue<String> features;
+	Queue<Attribute> features;
 	
 	public MainControllerThread() {
 		this.mrq  = new ArrayList<Node>();
@@ -44,7 +44,7 @@ public class MainControllerThread extends Thread {
 		DecisionTree tree = new DecisionTree();
 		BufferedReader br = new BufferedReader(new FileReader("data/features.txt"));
 		String[] featuresString = br.readLine().split(",");
-		this.features = new LinkedList<String>();
+		this.features = new LinkedList<Attribute>();
 		for (String f : featuresString) {
 			// split the feature file and read value range
 			Attribute att = new Attribute(f.split(":")[0],0);
@@ -65,12 +65,12 @@ public class MainControllerThread extends Thread {
 					att.addValue(Double.valueOf(val));
 				}
 			}
-				
-			this.features.add(att.getAttributeName());
+			this.features.add(att);
 			tree.addAttribute(att);
 		}
-		BranchingNode n = new BranchingNode(this.features.poll());
-		n.setAtt(tree.getAttributeSet().get(0));
+		Attribute rootAtt = this.features.poll();
+		BranchingNode n = new BranchingNode(rootAtt.getAttributeName());
+		n.setAtt(rootAtt);
 		tree.setRoot(n);
 		tree.addNode(n, null);
 		n.setFeatureIndex(0);
@@ -91,8 +91,9 @@ public class MainControllerThread extends Thread {
 			LeafNode leaf = new LeafNode("leaf");
 			tree.addNode(leaf, n);
 		} else {
-			BranchingNode n_daughter = new BranchingNode(this.features.poll());
-			n_daughter.setAtt(tree.getAttributeSet().get(0));
+			Attribute nextAtt = this.features.poll();
+			BranchingNode n_daughter = new BranchingNode(nextAtt.getAttributeName());
+			n_daughter.setAtt(nextAtt);
 			tree.addNode(n_daughter, n);
 			n.setFeatureIndex(0);
 			this.mrq.add(n);
@@ -101,13 +102,13 @@ public class MainControllerThread extends Thread {
 			LeafNode leaf = new LeafNode("leaf");
 			tree.addNode(leaf, n);
 		} else {
-			BranchingNode n_daughter = new BranchingNode(this.features.poll());
-			n_daughter.setAtt(tree.getAttributeSet().get(0));
+			Attribute nextAtt = this.features.poll();
+			BranchingNode n_daughter = new BranchingNode(nextAtt.getAttributeName());
+			n_daughter.setAtt(nextAtt);
 			tree.addNode(n_daughter, n);
 			n_daughter.setFeatureIndex(0);
 			this.mrq.add(n_daughter);
 		}
-		
 	}
 	
 	public void startJob() throws Exception {

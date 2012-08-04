@@ -4,39 +4,49 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.MapReduceBase;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.mapred.lib.MultipleOutputs;
 
-import de.uniheidelberg.cl.advprog.planet.tree.*;
 import de.uniheidelberg.cl.advprog.planet.structures.ThreeValueTuple;
 
 
-public class ExpandNodesReducer extends MapReduceBase implements
-				Reducer<NodeFeatSplitKey, ThreeValueTuple, NodeFeatSplitKey, ThreeValueTuple> {
+
+public class ExpandNodesReducer implements Reducer<NodeFeatSplitKey, ThreeValueTuple,NullWritable,NullWritable> {
 
 	Map<NodeFeatSplitKey,ThreeValueTuple> splitMetrics;
-	OutputCollector<NodeFeatSplitKey, ThreeValueTuple> output;
+	//OutputCollector<NodeFeatSplitKey, ThreeValueTuple> output;
 	Map<Integer, NodeFeatSplitKey> bestSplits;
+	Map<Integer, Double> bestSplitLeftBranch;
+	Map<Integer, Double> bestSplitRightBranch;
 	Map<NodeFeatSplitKey, Double> splitScores;
 	Map<Integer, ThreeValueTuple> marginals;
+	private MultipleOutputs mos;
+	private Reporter reporter;
 	
+
+
 	@Override
-	public void configure(JobConf job) {
+	public void configure(JobConf arg0) {
 		this.marginals = new HashMap<Integer, ThreeValueTuple>();
 		this.bestSplits = new HashMap<Integer, NodeFeatSplitKey>();
+		this.bestSplitLeftBranch = new HashMap<Integer, Double>();
+		this.bestSplitRightBranch = new HashMap<Integer, Double>();
 		this.splitScores = new HashMap<NodeFeatSplitKey, Double>();
-		super.configure(job);
 		this.splitMetrics = new HashMap<NodeFeatSplitKey, ThreeValueTuple>();
+		mos = new MultipleOutputs(arg0);
+		
 	}
+
 	
-	
-	
+		
 	public void reduce(NodeFeatSplitKey key, Iterator<ThreeValueTuple> values,
-			OutputCollector<NodeFeatSplitKey, ThreeValueTuple> output,
-			Reporter reporter) throws IOException {
+			OutputCollector<NullWritable, NullWritable> output, Reporter reporter)  {
 		/*
 		 * keys:
 		 * 1) n: all agg_tup_n tuples output by the mappers; feature idx = -1
@@ -55,9 +65,9 @@ public class ExpandNodesReducer extends MapReduceBase implements
 				val_old.add(val);
 				marginals.put(key.getNodeId(), val_old);
 			}
-			for (Integer i : marginals.keySet()) {
-				output.collect(new NodeFeatSplitKey(i, -1, ""), marginals.get(i));
-			}
+//			for (Integer i : marginals.keySet()) {
+//				output.collect(new NodeFeatSplitKey(i, -1, ""), marginals.get(i));
+//			}
 		} else {
 			ThreeValueTuple val = values.next();
 			double varianceReduction = this.varianceReduction(val, marginals.get(key.getNodeId()));
@@ -67,6 +77,8 @@ public class ExpandNodesReducer extends MapReduceBase implements
 
 				this.splitScores.put(key, varianceReduction);
 				this.bestSplits.put(key.getNodeId(), key);
+				this.bestSplitLeftBranch.put(key.getNodeId(), val.getInstanceNum());
+				this.bestSplitRightBranch.put(key.getNodeId(), marginals.get(key.getNodeId()).getInstanceNum() -  val.getInstanceNum());
 			}
 			System.out.println(key.toString() + " value: " + val.toString() + " variance reduction: " + this.varianceReduction(val, marginals.get(key.getNodeId())));
 			
@@ -83,17 +95,26 @@ public class ExpandNodesReducer extends MapReduceBase implements
 //				}
 //			}
 		}
-		this.output = output;
-	}
+		this.reporter = reporter;
+		
+	};
+
 	
-	@Override
-	public void close() throws IOException {
-		for (int nodeId : this.bestSplits.keySet()) {
-			output.collect(this.bestSplits.get(nodeId), new ThreeValueTuple(0, 0, 0));
+	public void close() {
+		try {
+			for (int nodeId : this.bestSplits.keySet()) {
+				System.out.println("Writing");
+				mos.getCollector("bestModel",this.reporter).collect(this.bestSplits.get(nodeId), new ThreeValueTuple(0, 0, 0));
+				mos.getCollector("branchCounts", this.reporter).collect(new Text("node:" + nodeId + ":left"), new DoubleWritable(this.bestSplitLeftBranch.get(nodeId)));
+				mos.getCollector("branchCounts", this.reporter).collect(new Text("node:" + nodeId + ":right"), new DoubleWritable(this.bestSplitRightBranch.get(nodeId)));
+				//output.collect(this.bestSplits.get(nodeId), new ThreeValueTuple(0, 0, 0));
+			}
+			mos.close();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 		
-		super.close();
-	}
+	};
 	
 	private double variance(ThreeValueTuple branch) {
 		double meanOfSquaredSum = branch.getSquareSum() / branch.getInstanceNum();
@@ -110,5 +131,7 @@ public class ExpandNodesReducer extends MapReduceBase implements
 		
 		return docSize * docVar - (leftBranch.getInstanceNum() * leftVar + rightBranch.getInstanceNum() * rightVar);
 	}
+
+
 
 }

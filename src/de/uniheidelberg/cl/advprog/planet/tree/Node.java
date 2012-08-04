@@ -34,7 +34,7 @@ public class Node implements Serializable{
 	public Node getMother() {
 		return mother;
 	}
-	private void addDaughter(Node daughter) {
+	public void addDaughter(Node daughter) {
 		this.daughters.add(daughter);
 	}
 	

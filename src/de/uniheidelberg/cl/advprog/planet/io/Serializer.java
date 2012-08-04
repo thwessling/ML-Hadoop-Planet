@@ -8,10 +8,12 @@ import java.io.ObjectOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapreduce.Mapper.Context;
 import org.apache.hadoop.mapreduce.filecache.DistributedCache;
 
 import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
@@ -19,7 +21,7 @@ import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
 public class Serializer {
 	public static final String HDFS_MODEL_PATH="tree_model.ser";
 	
-	public static URI serializeModelToDFS(DecisionTree model, JobConf conf) throws IOException, URISyntaxException {
+	public static URI serializeModelToDFS(DecisionTree model, Configuration conf) throws IOException, URISyntaxException {
 		FileSystem fs = FileSystem.get(conf);
 		Path hdfsPath = new Path(HDFS_MODEL_PATH);
 
@@ -50,7 +52,7 @@ public class Serializer {
 		return tree;
 	  }
 	
-	public static DecisionTree readModelFromDFS(JobConf conf) throws IOException, ClassNotFoundException {
+	public static DecisionTree readModelFromDFS(Configuration conf) throws IOException, ClassNotFoundException {
 		URI[] cacheFiles = DistributedCache.getCacheFiles(conf);
 		FileSystem fileSystem = FileSystem.get(conf);
         if (null != cacheFiles && cacheFiles.length > 0) {
