@@ -45,7 +45,11 @@ public class DecisionTree implements Serializable {
 		n.setMother(mother);
 		if (mother != null)
 			mother.addDaughter(n);
-		this.idxToNode.put(n.getFeatureIndex(), n);
+		if (! n.isLeaf()) {
+			// if this is a branching node: add the feature->node mapping
+			BranchingNode b = (BranchingNode) n;
+			this.idxToNode.put(b.getAtt().getIndex(), n);
+		}
 	}
 	
 	public void addAttribute(Attribute a) { 
@@ -58,28 +62,45 @@ public class DecisionTree implements Serializable {
 	
 	
 	public boolean isFeatureActive(Double[] doubles, int featureIdx, double value) {
-		Node motherNode = this.root;
+		BranchingNode motherNode = (BranchingNode) this.root;
 		// go down the tree up to featureIdx
 		for (int i = 0; i < featureIdx - 1; i++) {
-			if (motherNode.getFeatureIndex() == featureIdx) {
-				BranchingNode branchingMother = (BranchingNode) motherNode;
-				if (doubles[i] < branchingMother.getSplit()) {
+			if (motherNode.getAtt().getIndex() == featureIdx) {
+				if (doubles[i] < motherNode.getSplit()) {
 					// go down left branch
-					motherNode = branchingMother.getDaughters().get(0);
+					Node leftBranchTarget = motherNode.getDaughters().get(0);
+					if (leftBranchTarget.isLeaf())
+						return false;
+					motherNode = (BranchingNode) leftBranchTarget;
 				} else {
-					motherNode = branchingMother.getDaughters().get(1);
+					// go down left branch
+					Node rightBranchTarget = motherNode.getDaughters().get(1);
+					if (rightBranchTarget.isLeaf())
+						return false;
+					motherNode = (BranchingNode) rightBranchTarget;
 				}
 			}
 		}
-		if (motherNode.getFeatureIndex() == featureIdx) 
+		if (motherNode.getAtt().getIndex() == featureIdx) 
 			return true;
 		else 
 			return false;
 		
 	}
 	
+	public void printTree(Node n) {
+		String motherString = "<null>";
+		if (n.getMother() != null) {
+			motherString = "<" + n.getMother().toString() + ">";
+		}
+		System.out.println(motherString + " --> " + n.toString());
+		if (n.getDaughters() != null) {
+			 for (int i = 0; i < n.getDaughters().size() - 1; i++) {
+	            printTree(n);
+	    }
+		}
+	}
 		
 	
-		
 	
 }

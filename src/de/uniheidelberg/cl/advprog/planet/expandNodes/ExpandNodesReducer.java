@@ -1,5 +1,4 @@
 package de.uniheidelberg.cl.advprog.planet.expandNodes;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -105,8 +104,8 @@ public class ExpandNodesReducer implements Reducer<NodeFeatSplitKey, ThreeValueT
 			for (int nodeId : this.bestSplits.keySet()) {
 				System.out.println("Writing");
 				mos.getCollector("bestModel",this.reporter).collect(this.bestSplits.get(nodeId), new ThreeValueTuple(0, 0, 0));
-				mos.getCollector("branchCounts", this.reporter).collect(new Text("node:" + nodeId + ":left"), new DoubleWritable(this.bestSplitLeftBranch.get(nodeId)));
-				mos.getCollector("branchCounts", this.reporter).collect(new Text("node:" + nodeId + ":right"), new DoubleWritable(this.bestSplitRightBranch.get(nodeId)));
+				mos.getCollector("branchCounts", this.reporter).collect(new Text("node:" + nodeId + ":left:"), new DoubleWritable(this.bestSplitLeftBranch.get(nodeId)));
+				mos.getCollector("branchCounts", this.reporter).collect(new Text("node:" + nodeId + ":right:"), new DoubleWritable(this.bestSplitRightBranch.get(nodeId)));
 				//output.collect(this.bestSplits.get(nodeId), new ThreeValueTuple(0, 0, 0));
 			}
 			mos.close();

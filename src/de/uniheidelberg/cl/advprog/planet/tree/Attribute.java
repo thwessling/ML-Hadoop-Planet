@@ -28,6 +28,10 @@ public class Attribute implements Serializable{
 	public void addValue(double value) {
 		this.values.add(value);
 	}
+	
+	public int getIndex() {
+		return index;
+	}
 	public Set<Double> getValues() {
 		return values;
 	}
