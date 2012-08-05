@@ -13,16 +13,16 @@ public class OutputReader {
 	public Map<Integer, BestModel> readBestModels() throws IOException {
 		Map<Integer, BestModel> node2Model = new HashMap<Integer, BestModel>();
 		
-		BufferedReader br = new BufferedReader(new FileReader("test-out/bestModel-r-00000"));
+		BufferedReader br = new BufferedReader(new FileReader("test_out/bestModel-r-00000"));
 		while (br.ready()) {
 			String line = br.readLine();
-			int nodeId = Integer.parseInt(line.split("\t")[0].split("\\:")[1].split(",")[0]);
+			int nodeId = Integer.parseInt(line.split("\t")[0].split("\\:")[1].split(",")[0].trim());
 			double bestSplit = Double.parseDouble(line.split("\t")[0].split("\\:")[3]);
 			BestModel m = new BestModel(nodeId, bestSplit);
 			node2Model.put(nodeId, m);
 		}
 		
-		br = new BufferedReader(new FileReader("test-out/branchCounts-r-00000"));
+		br = new BufferedReader(new FileReader("test_out/branchCounts-r-00000"));
 		while (br.ready()) {
 			String line = br.readLine();
 			int nodeId = Integer.parseInt(line.split("\\:")[1]);
@@ -30,8 +30,14 @@ public class OutputReader {
 			if (line.split("\\:")[2].equals("left")) {
 				node2Model.get(nodeId).setLeftBranchInstances((long) count);
 			}
-			double bestSplit = Double.parseDouble(line.split("\t")[0].split("\\:")[3]);
 		}
+
+        for (int nodeId : node2Model.keySet()) {
+            BestModel m = node2Model.get(nodeId);
+            System.out.println("<model> for node: " + nodeId + "; best split: " + m.getSplit() + " left branch inst: " + m.getLeftBranchInstances());
+        }
+
+
 		return node2Model;
 	}
 	

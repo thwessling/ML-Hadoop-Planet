@@ -4,6 +4,7 @@ package de.uniheidelberg.cl.advprog.planet.controller;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -112,6 +113,7 @@ public class MainControllerThread extends Thread {
 			n_daughter.setAtt(nextAtt);
 			this.mrq.add(n_daughter);
 		}
+        this.model.printTree(this.model.getRoot());
 	}
 	
 	
@@ -128,10 +130,24 @@ public class MainControllerThread extends Thread {
 			for (BestModel model : models.values()) {
 				this.addResult(this.model, model);
 			}
+            this.deleteReducerOutput();
 		}
+
 	}
+
+    public void deleteReducerOutput() {
+        File outputDir = new File("./test_out/");
+        if (!outputDir.exists())
+            return;
+        for (File outputFile : outputDir.listFiles()) {
+            outputFile.delete();
+        }
+        System.out.println(outputDir.delete());
+        System.out.println("Output dir deleted");
+    }
 	
 	public void startJob() throws Exception {
+        this.deleteReducerOutput();
 		this.model = createInitialModel();
 		this.model.printTree(this.model.getRoot());
 		loop();
