@@ -7,27 +7,29 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import de.uniheidelberg.cl.advprog.planet.expandNodes.ExpandNodesController;
-import de.uniheidelberg.cl.advprog.planet.structures.ThreeValueTuple;
-import de.uniheidelberg.cl.advprog.planet.structures.TreeModel;
+import de.uniheidelberg.cl.advprog.planet.io.OutputReader;
+import de.uniheidelberg.cl.advprog.planet.structures.BestModel;
 import de.uniheidelberg.cl.advprog.planet.tree.Attribute;
 import de.uniheidelberg.cl.advprog.planet.tree.BranchingNode;
 import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
 import de.uniheidelberg.cl.advprog.planet.tree.LeafNode;
 import de.uniheidelberg.cl.advprog.planet.tree.Node;
 import de.uniheidelberg.cl.advprog.planet.tree.Split;
+import de.uniheidelberg.cl.advprog.planet.tree.Split.SPLITTYPE;
 
 public class MainControllerThread extends Thread {
 
-	TreeModel model;
+	DecisionTree model;
 	/**
 	 * Nodes for which D* is too large to fit in memory.
 	 */
-	List<Node> mrq;
+	Queue<BranchingNode> mrq;
 	/**
 	 * Nodes for which D* fits in memory.
 	 */
@@ -36,7 +38,7 @@ public class MainControllerThread extends Thread {
 	Queue<Attribute> features;
 	
 	public MainControllerThread() {
-		this.mrq  = new ArrayList<Node>();
+		this.mrq  = new LinkedList<BranchingNode>();
 		this.inMemQ = new ArrayList<Node>();
 	}
 	
@@ -73,20 +75,21 @@ public class MainControllerThread extends Thread {
 		n.setAtt(rootAtt);
 		tree.setRoot(n);
 		tree.addNode(n, null);
-		n.setFeatureIndex(0);
 		this.mrq.add(n);
 		
 		return tree;
 	}
 	
 	
-	private void addResult(int nodeId, DecisionTree tree, Split bestSplit, ThreeValueTuple tuple) {
+	private void addResult(DecisionTree tree, BestModel model) {
 		// add the best split to the decision tree
-		BranchingNode n = (BranchingNode) tree.getNodeById(nodeId);
-		n.getAtt().setSplit(bestSplit);
+		BranchingNode n = (BranchingNode) tree.getNodeById(model.getNode());
+		Split s = new Split(SPLITTYPE.NUMERIC, model.getFeatNum());
+		s.setOrderedSplit(model.getSplit());
+		n.getAtt().setSplit(s);
 		// compute data set size in left and right branch
-		double leftSize = tuple.getInstanceNum();
-		double rightSize = tuple.getInstanceNum();
+		double leftSize = model.getLeftBranchInstances();
+		double rightSize = model.getRightBranchInstances();
 		if (leftSize < 30) {
 			LeafNode leaf = new LeafNode("leaf");
 			tree.addNode(leaf, n);
@@ -95,7 +98,7 @@ public class MainControllerThread extends Thread {
 			BranchingNode n_daughter = new BranchingNode(nextAtt.getAttributeName());
 			n_daughter.setAtt(nextAtt);
 			tree.addNode(n_daughter, n);
-			n.setFeatureIndex(0);
+			n_daughter.setAtt(nextAtt);
 			this.mrq.add(n);
 		}
 		if (rightSize < 30) {
@@ -106,22 +109,32 @@ public class MainControllerThread extends Thread {
 			BranchingNode n_daughter = new BranchingNode(nextAtt.getAttributeName());
 			n_daughter.setAtt(nextAtt);
 			tree.addNode(n_daughter, n);
-			n_daughter.setFeatureIndex(0);
+			n_daughter.setAtt(nextAtt);
 			this.mrq.add(n_daughter);
 		}
 	}
 	
+	
+	public void loop() throws Exception {
+		while (this.mrq.size() > 0) {
+			BranchingNode n = this.mrq.poll();
+			// start mr_expandNodes
+			ExpandNodesController contr = new ExpandNodesController(n.getAtt().getIndex(), model);
+			// read results and determine best split for node
+			contr.run(new String[]{"test", "test_out"});
+			// add the split information to the model file
+			OutputReader reader = new OutputReader();
+			Map<Integer, BestModel> models = reader.readBestModels();
+			for (BestModel model : models.values()) {
+				this.addResult(this.model, model);
+			}
+		}
+	}
+	
 	public void startJob() throws Exception {
-		
-		DecisionTree model = createInitialModel();
-		// start mr_expandNodes
-		ExpandNodesController contr = new ExpandNodesController(this.mrq.get(0).getFeatureIndex(), model);
-		// read results and determine best split for node
-		contr.run(new String[]{"test", "test_out"});
-		// add the split information to the model file
-		//augment.parseOutputFile("");
-		
-		// compute next nodes to be expanded
+		this.model = createInitialModel();
+		this.model.printTree(this.model.getRoot());
+		loop();
 	}
 	
 	@Override

@@ -13,6 +13,8 @@ public class Split implements Serializable {
 	private double threshold;
 	private int feature;
 	private Node node;
+	private boolean isOrdered;
+	
 	
 	public enum SPLITTYPE {
 		NUMERIC,CATEGORIAL;
@@ -26,6 +28,10 @@ public class Split implements Serializable {
 	
 	public void setNode(Node node) {
 		this.node = node;
+	}
+	
+	public boolean isOrdered() {
+		return isOrdered;
 	}
 	
 	public Node getNode() {

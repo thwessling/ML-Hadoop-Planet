@@ -5,14 +5,26 @@ public class BestModel {
 	double split;
 	long leftBranchInstances;
 	long rightBranchInstances;
+	int featNum;
 	
-	public BestModel(int node, double split, long leftb, long rightb) {
+	
+	public BestModel(int node, double split) {
 		this.node = node;
 		this.split = split;
-		this.leftBranchInstances = leftb;
-		this.rightBranchInstances = rightb;
 	}
 	
+	public void setLeftBranchInstances(long leftBranchInstances) {
+		this.leftBranchInstances = leftBranchInstances;
+	}
+	public int getFeatNum() {
+		return featNum;
+	}
+	public void setFeatNum(int featNum) {
+		this.featNum = featNum;
+	}
+	public void setRightBranchInstances(long rightBranchInstances) {
+		this.rightBranchInstances = rightBranchInstances;
+	}
 	public long getLeftBranchInstances() {
 		return leftBranchInstances;
 	}
