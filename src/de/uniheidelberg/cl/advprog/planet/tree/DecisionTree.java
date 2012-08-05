@@ -92,13 +92,17 @@ public class DecisionTree implements Serializable {
 		String motherString = "<null>";
 		if (n.getMother() != null) {
 			motherString = "<" + n.getMother().toString() + ">";
+            System.out.println(motherString + " --> " + n.toString());
 		}
-		System.out.println(motherString + " --> " + n.toString());
-		if (n.getDaughters() != null) {
-			 for (int i = 0; i < n.getDaughters().size() - 1; i++) {
-	            printTree(n);
-	    }
-		}
+		if (n.getDaughters().size() > 0) {
+            for (int i = 0; i < n.getDaughters().size() - 1; i++) {
+                printTree(n.getDaughters().get(i));
+                //System.out.println(n.toString() + " --> " + n.getDaughters().get(i));
+            }
+		} else {
+            return;
+        }
+           
 	}
 		
 	
