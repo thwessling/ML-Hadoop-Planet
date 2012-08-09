@@ -22,14 +22,17 @@ public class DecisionTree implements Serializable {
 	private Node root;
 	/**
 	 * Mapping from feature indices to node objects to access a node for a specific feature.
-	 * Note that the feature index is identical to the node index for convenience.
+	 * Note that the feature index is NOT identical to the node index.
 	 */
-	private HashMap<Integer, BranchingNode> idxToNode;
+	private HashMap<Integer, BranchingNode> featIdxToNode;
+	
+	private HashMap<Integer, BranchingNode> nodeIdxToNode;
 	
 	public DecisionTree() {
 		nodeSet = new HashSet<Node>();
 		attributeSet = new ArrayList<Attribute>();
-		this.idxToNode = new HashMap<Integer, BranchingNode>();
+		this.featIdxToNode = new HashMap<Integer, BranchingNode>();
+		this.nodeIdxToNode = new HashMap<Integer, BranchingNode>();
 	}
 	
 	public void setRoot(Node root) {
@@ -40,8 +43,18 @@ public class DecisionTree implements Serializable {
 		return root;
 	}
 	
+	public Attribute getAttributeByIdx(int id) {
+		if (id+1 > this.attributeSet.size())
+			return null;
+		return this.attributeSet.get(id);
+	}
+	
+	public BranchingNode getNodeByFeatureId(int id) {
+		return this.featIdxToNode.get(id);
+	}
+	
 	public BranchingNode getNodeById(int id) {
-		return this.idxToNode.get(id);
+		return this.nodeIdxToNode.get(id);
 	}
 	
 	public void addNode(Node n, Node mother) {
@@ -52,7 +65,10 @@ public class DecisionTree implements Serializable {
 		if (! n.isLeaf()) {
 			// if this is a branching node: add the feature->node mapping
 			BranchingNode b = (BranchingNode) n;
-			this.idxToNode.put(b.getAtt().getIndex(), b);
+			this.featIdxToNode.put(b.getAtt().getIndex(), b);
+			int newNodeIdx = this.nodeIdxToNode.size();
+			b.setNodeIndex(newNodeIdx);
+			this.nodeIdxToNode.put(newNodeIdx, b);
 		}
 	}
 	
@@ -65,7 +81,7 @@ public class DecisionTree implements Serializable {
 	}
 	
 	
-	public boolean isInstanceActive(Double[] featureValues, int featureIdx) {
+	public boolean isInstanceActive(Double[] featureValues, int featureIdx, int nodeIndex) {
 		BranchingNode motherNode = (BranchingNode) this.root;
 		// go down the tree up to featureIdx
 		for (int i = 0; i < featureIdx ; i++) {
@@ -85,7 +101,8 @@ public class DecisionTree implements Serializable {
 				}
 			}
 		}
-		if (motherNode.getAtt().getIndex() == featureIdx) 
+		//if (motherNode.getAtt().getIndex() == featureIdx)
+		if (motherNode.getNodeIndex() == nodeIndex)
 			return true;
 		else 
 			return false;

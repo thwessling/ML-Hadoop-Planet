@@ -62,7 +62,9 @@ public class Split implements Serializable, Splittable {
 	public int getFeature() {
 		return feature;
 	}
-	
+	public String getHadoopString() {
+		return "";
+	}
 	public int getLeftBranchInstances() {
 		return leftBranchInstances;
 	}
@@ -82,10 +84,6 @@ public class Split implements Serializable, Splittable {
 		return this.getSplitId();
 	}
 	
-	public String getHadoopString() {
-		return ""; 
-	}
-
 	@Override
 	public BRANCH getBranchForValue(double value) {
 		return BRANCH.LEFT;

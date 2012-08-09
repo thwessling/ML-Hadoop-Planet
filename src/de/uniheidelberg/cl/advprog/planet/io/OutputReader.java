@@ -20,15 +20,17 @@ public class OutputReader {
 	
 	public Map<Integer, BestModel> readBestModels(String outputPath, DecisionTree model) throws IOException {
 		Map<Integer, BestModel> node2Model = new HashMap<Integer, BestModel>();
-		
+		if (!new File(outputPath, "bestModel-r-00000").exists())
+			return null;
 		BufferedReader br = new BufferedReader(new FileReader(new File(outputPath, "bestModel-r-00000")));
 		while (br.ready()) {
 			String line = br.readLine();
 			int nodeId = Integer.parseInt(line.split("\t")[0].split("\\:")[1]);
+			// if no instance arrives at this node: it should be a leaf node
 			/* bestSplit is a string indicating the best split values for a node. 
 			 * This can be a single double value (for ordered splits) or a list of value (for
 			 * unordered splits), separated by ; 												 */
-			String bestSplit = line.split("\t")[0].split("\\:")[3];
+			String bestSplit = line.split("\t")[0].split("\\:")[5];
 			double leftBranchSum = Double.parseDouble(line.split("\t")[1].split("\\:")[1].split(",")[0]);
 			double rightBranchSum = Double.parseDouble(line.split("\t")[1].split("\\:")[1].split(",")[1]);
 			BranchingNode n = model.getNodeById(nodeId);

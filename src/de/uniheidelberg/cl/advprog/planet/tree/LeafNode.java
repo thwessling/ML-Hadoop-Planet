@@ -12,4 +12,9 @@ public class LeafNode extends Node {
 	public double getWeight() {
 		return weight;
 	}
+
+	@Override
+	public String toString() {
+		return "[LEAF] (avg y: " + this.getAverageY() + ") instances: " + instances;
+	}
 }

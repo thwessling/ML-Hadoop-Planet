@@ -21,16 +21,16 @@ import de.uniheidelberg.cl.advprog.planet.tree.UnorderedSplit;
 
 
 
-public class ExpandNodesReducer implements Reducer<FeatSplitKey, FourValueTuple,NullWritable,NullWritable> {
+public class ExpandNodesReducer implements Reducer<NodeFeatSplitKey, FourValueTuple,NullWritable,NullWritable> {
 
-	Map<FeatSplitKey,FourValueTuple> splitMetrics;
+	Map<NodeFeatSplitKey,FourValueTuple> splitMetrics;
 	//OutputCollector<NodeFeatSplitKey, ThreeValueTuple> output;
-	Map<Integer, FeatSplitKey> bestSplits;
+	Map<Integer, NodeFeatSplitKey> bestSplits;
 	Map<Integer, Double> bestSplitLeftBranchInstances;
 	Map<Integer, Double> bestSplitLeftBranchYsum;
 	Map<Integer, Double> bestSplitRightBranchInstances;
 	Map<Integer, Double> bestSplitRightBranchYsum;
-	Map<FeatSplitKey, Double> splitScores;
+	Map<NodeFeatSplitKey, Double> splitScores;
 	Map<Double, FourValueTuple> unorderedXtoY;
 	Map<Integer, FourValueTuple> marginals;
 	private MultipleOutputs mos;
@@ -41,20 +41,20 @@ public class ExpandNodesReducer implements Reducer<FeatSplitKey, FourValueTuple,
 	@Override
 	public void configure(JobConf arg0) {
 		this.marginals = new HashMap<Integer, FourValueTuple>();
-		this.bestSplits = new HashMap<Integer, FeatSplitKey>();
+		this.bestSplits = new HashMap<Integer, NodeFeatSplitKey>();
 		this.bestSplitLeftBranchInstances = new HashMap<Integer, Double>();
 		this.bestSplitRightBranchInstances = new HashMap<Integer, Double>();
 		this.bestSplitLeftBranchYsum = new HashMap<Integer, Double>();
 		this.bestSplitRightBranchYsum = new HashMap<Integer, Double>();
-		this.splitScores = new HashMap<FeatSplitKey, Double>();
-		this.splitMetrics = new HashMap<FeatSplitKey, FourValueTuple>();
+		this.splitScores = new HashMap<NodeFeatSplitKey, Double>();
+		this.splitMetrics = new HashMap<NodeFeatSplitKey, FourValueTuple>();
 		mos = new MultipleOutputs(arg0);
 		this.unorderedXtoY = new HashMap<Double, FourValueTuple>();
 	}
 
 	
 		
-	public void reduce(FeatSplitKey key, Iterator<FourValueTuple> values,
+	public void reduce(NodeFeatSplitKey key, Iterator<FourValueTuple> values,
 			OutputCollector<NullWritable, NullWritable> output, Reporter reporter)  {
 		/*
 		 * keys:
@@ -65,14 +65,14 @@ public class ExpandNodesReducer implements Reducer<FeatSplitKey, FourValueTuple,
 			/*
 			 * marginals 
 			 */
-			if (marginals.get(key.getFeatId()) == null) {
-				marginals.put(key.getFeatId(), new FourValueTuple(0, 0, 0));
+			if (marginals.get(key.getNodeId()) == null) {
+				marginals.put(key.getNodeId(), new FourValueTuple(0, 0, 0));
 			}
 			while (values.hasNext()) {
 				FourValueTuple val = values.next();
-				FourValueTuple val_old = marginals.get(key.getFeatId());
+				FourValueTuple val_old = marginals.get(key.getNodeId());
 				val_old.add(val);
-				marginals.put(key.getFeatId(), val_old);
+				marginals.put(key.getNodeId(), val_old);
 			}
 		} else if (key.getSplitId().equals("UNORDERED")) {
 			while (values.hasNext()) {
@@ -84,16 +84,17 @@ public class ExpandNodesReducer implements Reducer<FeatSplitKey, FourValueTuple,
 		} else {
 			while (values.hasNext()) {
 				FourValueTuple val = values.next();
-				double varianceReduction = this.varianceReduction(val, marginals.get(key.getFeatId()));
+				double varianceReduction = this.varianceReduction(val, marginals.get(key.getNodeId()));
 				// check if there is a higher split
-				if (this.bestSplits.get(key.getFeatId()) == null || 
-						this.splitScores.get(bestSplits.get(key.getFeatId())) < varianceReduction) {
-					this.splitScores.put(key, varianceReduction);
-					this.bestSplits.put(key.getFeatId(), key);
-					this.bestSplitLeftBranchInstances.put(key.getFeatId(), val.getInstanceNum());
-					this.bestSplitLeftBranchYsum.put(key.getFeatId(), val.getLeftBranchSum());
-					this.bestSplitRightBranchInstances.put(key.getFeatId(), marginals.get(key.getFeatId()).getInstanceNum() -  val.getInstanceNum());
-					this.bestSplitRightBranchYsum.put(key.getFeatId(), marginals.get(key.getFeatId()).getLeftBranchSum() - val.getLeftBranchSum());
+				if (this.bestSplits.get(key.getNodeId()) == null || 
+						this.splitScores.get(bestSplits.get(key.getNodeId())) == null || 
+						this.splitScores.get(bestSplits.get(key.getNodeId())) < varianceReduction) {
+					this.splitScores.put(bestSplits.get(key.getNodeId()), varianceReduction);
+					this.bestSplits.put(key.getNodeId(), key);
+					this.bestSplitLeftBranchInstances.put(key.getNodeId(), val.getInstanceNum());
+					this.bestSplitLeftBranchYsum.put(key.getNodeId(), val.getLeftBranchSum());
+					this.bestSplitRightBranchInstances.put(key.getNodeId(), marginals.get(key.getNodeId()).getInstanceNum() -  val.getInstanceNum());
+					this.bestSplitRightBranchYsum.put(key.getNodeId(), marginals.get(key.getNodeId()).getLeftBranchSum() - val.getLeftBranchSum());
 				}
 				System.out.println(key.toString() + " value: " + val.toString() + " variance reduction: " + varianceReduction);
 			}
@@ -119,38 +120,39 @@ public class ExpandNodesReducer implements Reducer<FeatSplitKey, FourValueTuple,
 				splitId = splitId + ";" + val;
 			}
 			splitId = splitId.substring(1);
-			FeatSplitKey outputKey = new FeatSplitKey(key.getFeatId(), splitId);
-			this.bestSplits.put(key.getFeatId(), outputKey);
+			NodeFeatSplitKey outputKey = new NodeFeatSplitKey(key.getNodeId(),key.getFeatId(), splitId);
+			this.bestSplits.put(key.getNodeId(), outputKey);
 
-			this.bestSplitLeftBranchInstances.put(key.getFeatId(), (double) split.getLeftBranchInstances());
-			this.bestSplitRightBranchInstances.put(key.getFeatId(), marginals.get(key.getFeatId()).getInstanceNum()- (double) split.getRightBranchInstances());
-			this.bestSplitLeftBranchYsum.put(key.getFeatId(), split.getLeftBranchY());
-			this.bestSplitRightBranchYsum.put(key.getFeatId(), marginals.get(key.getFeatId()).getLeftBranchSum() - split.getLeftBranchY());
+			this.bestSplitLeftBranchInstances.put(key.getNodeId(), (double) split.getLeftBranchInstances());
+			//System.out.println("Marginals for node " + key.getNodeId() + ":" marginals.get(key.getNodeId()).getLeft );
+			this.bestSplitRightBranchInstances.put(key.getNodeId(), marginals.get(key.getNodeId()).getInstanceNum() - (double) split.getLeftBranchInstances());
+			this.bestSplitLeftBranchYsum.put(key.getNodeId(), split.getLeftBranchY());
+			this.bestSplitRightBranchYsum.put(key.getNodeId(), marginals.get(key.getNodeId()).getLeftBranchSum() - split.getLeftBranchY());
 		}
 		
 		this.reporter = reporter;
 		
 	};
 
-	private UnorderedSplit computeBreimanSplit(FeatSplitKey key) {
+	private UnorderedSplit computeBreimanSplit(NodeFeatSplitKey key) {
 		TreeMap<Double, List<Double>> avgYtoValMap = new TreeMap<Double, List<Double>>();
 		// sort x values according to their average y value
 		for (double xVal : this.unorderedXtoY.keySet()) {
-			double avgY = this.unorderedXtoY.get(xVal).getLeftBranchSum() / this.marginals.get(key.getFeatId()).getLeftBranchSum();
-			System.out.println("xValue: " + xVal + " y value: " + this.unorderedXtoY.get(xVal) + " avgY " + avgY);
+			double avgY = this.unorderedXtoY.get(xVal).getLeftBranchSum() / this.marginals.get(key.getNodeId()).getLeftBranchSum();
+//			System.out.println("xValue: " + xVal + " y value: " + this.unorderedXtoY.get(xVal) + " avgY " + avgY);
 
 			if (!avgYtoValMap.containsKey(avgY))
 				avgYtoValMap.put(avgY, new ArrayList<Double>());
 			avgYtoValMap.get(avgY).add(xVal);
 		}
 		
-		System.out.println("Ordered split keys breiman:");
-		UnorderedSplit split = new UnorderedSplit(key.getFeatId());
+//		System.out.println("Ordered split keys breiman:");
+		UnorderedSplit split = new UnorderedSplit(key.getNodeId());
 		double bestReduction = 0.0;
 		for (double avgY : avgYtoValMap.descendingKeySet()) {
-			System.out.printf("\nclass association: %s", avgY);
+//			System.out.printf("\nclass association: %s", avgY);
 			for (double featVal : avgYtoValMap.get(avgY)) {
-				System.out.printf("\t feature: " + featVal + "\n");
+//				System.out.printf("\t feature: " + featVal + "\n");
 				split.addLeftBranchItem(featVal);
 				/* compute complexity reduction with this feat
 				 * if not greater: return */
@@ -159,10 +161,10 @@ public class ExpandNodesReducer implements Reducer<FeatSplitKey, FourValueTuple,
 					// add up all tuples in the left branch split
 					leftBranchTuple.add(this.unorderedXtoY.get(splitFeatVal));
 				}
-				System.out.println("Left branch tuple " + leftBranchTuple);
+//				System.out.println("Left branch tuple " + leftBranchTuple);
 				// compute complexity reduction
-				double reduction = this.varianceReduction(leftBranchTuple, this.marginals.get(key.getFeatId()));
-				System.out.println("Reduction: " + reduction);
+				double reduction = this.varianceReduction(leftBranchTuple, this.marginals.get(key.getNodeId()));
+//				System.out.println("Reduction: " + reduction);
 				if (reduction > bestReduction) {
 					bestReduction = reduction;
 					split.setLeftBranchInstances((int) leftBranchTuple.getInstanceNum());
