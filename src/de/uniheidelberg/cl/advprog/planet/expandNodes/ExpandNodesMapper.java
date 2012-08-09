@@ -25,7 +25,7 @@ import de.uniheidelberg.cl.advprog.planet.tree.Split.BRANCH;
 /**
  * Word count with relative frequencies. Implemented using the pairs approach.
  */
-public class ExpandNodesMapper implements Mapper<LongWritable, Text, FeatSplitKey, FourValueTuple>  {
+public class ExpandNodesMapper implements Mapper<LongWritable, Text, NodeFeatSplitKey, FourValueTuple>  {
 		Map<Split, FourValueTuple> orderedSplitStats;
 		Map<Double, FourValueTuple> unOrderedSplitStats;
 		FourValueTuple marginalStats;
@@ -33,7 +33,7 @@ public class ExpandNodesMapper implements Mapper<LongWritable, Text, FeatSplitKe
 		DecisionTree tree;
 		private int featureIdx;
 		private int nodeIdx;
-		OutputCollector<FeatSplitKey, FourValueTuple> output;
+		OutputCollector<NodeFeatSplitKey, FourValueTuple> output;
 
 		@Override
 		public void configure(JobConf context) {
@@ -56,7 +56,7 @@ public class ExpandNodesMapper implements Mapper<LongWritable, Text, FeatSplitKe
 		
 		
 		public void map(LongWritable key, Text value,
-				OutputCollector<FeatSplitKey, FourValueTuple> output,
+				OutputCollector<NodeFeatSplitKey, FourValueTuple> output,
 				Reporter reporter) throws IOException {
 			String line = value.toString();
 			StringTokenizer itr = new StringTokenizer(line,",");
@@ -64,22 +64,30 @@ public class ExpandNodesMapper implements Mapper<LongWritable, Text, FeatSplitKe
 			while (itr.hasMoreTokens()) {
 				elems.add(Double.parseDouble(itr.nextToken()));
 			}
-			
 			// extract and remove the class label
 			double label = elems.get(elems.size()-1);
 			elems.remove(elems.size()-1);
+
+			for (double elem : elems) {
+				System.out.printf(elem + ",");
+			}
 			
 			/* check whether this instance is active for the current feature */
-			if (!this.tree.isInstanceActive(elems.toArray(new Double[elems.size()]), this.featureIdx))
+			if (!this.tree.isInstanceActive(elems.toArray(new Double[elems.size()]), this.featureIdx, this.nodeIdx)) {
+				System.out.printf(" not active\n");
 				return;
-
+			}
+			System.out.printf(" active\n");
 			
 			// get Node for this feature
-			BranchingNode node = (BranchingNode) this.tree.getNodeById(this.featureIdx);
-			// get splits
-			Set<Split> splits = node.getAtt().getPossibleSplits();
+			BranchingNode node = (BranchingNode) this.tree.getNodeById(this.nodeIdx);
+			
 			// collect statistics for each possible split
 			if (node.getAtt().isOrdered()) {
+				// get all possible splits
+				Set<Split> splits = node.getAtt().getPossibleSplits();
+				
+				/* ordered attributes */
 				for (Split s : splits) {
 					// compute metric tuples
 					FourValueTuple tuple = this.computeSplitMetrics(elems.get(this.featureIdx), label, s);
@@ -89,6 +97,7 @@ public class ExpandNodesMapper implements Mapper<LongWritable, Text, FeatSplitKe
 						FourValueTuple old_tuple = this.orderedSplitStats.get(s);
 						tuple.add(old_tuple);
 					}
+					System.out.println("Split " + s + " tuple: " + tuple);
 					this.orderedSplitStats.put(s, tuple);
 				}
 			} else {
@@ -99,7 +108,6 @@ public class ExpandNodesMapper implements Mapper<LongWritable, Text, FeatSplitKe
 					tuple.add(old_tuple);
 				}
 				this.unOrderedSplitStats.put(elems.get(this.featureIdx), tuple);
-//				System.out.println("Tuple for feature value: " + elems.get(this.featureIdx) + ": " +  tuple);
 			}
 			
 			// count marginals
@@ -109,9 +117,11 @@ public class ExpandNodesMapper implements Mapper<LongWritable, Text, FeatSplitKe
 			
 		}
 		
-		public void close() { 
+		public void close() {
+			if (this.marginalStats.getInstanceNum() == 0)
+				return;
 			for (Split s : this.orderedSplitStats.keySet()) {
-				FeatSplitKey split = new FeatSplitKey(s.getFeature(),s.getHadoopString());
+				NodeFeatSplitKey split = new NodeFeatSplitKey(this.nodeIdx, s.getFeature(),s.getHadoopString());
 				try {
 					this.output.collect(split, this.orderedSplitStats.get(s));
 				} catch (IOException e) {
@@ -121,10 +131,10 @@ public class ExpandNodesMapper implements Mapper<LongWritable, Text, FeatSplitKe
 			}
 			for (double val : this.unOrderedSplitStats.keySet()) {
 				/*
-				 * for unordered attributes: collect {(featureIdx,"UNORDERED") -> (ThreevalueTuple)} pairs 
+				 * for unordered attributes: collect {(nodeIdx, featureIdx,"UNORDERED") -> (ThreevalueTuple)} pairs 
 				 * 
 				 */
-				FeatSplitKey featureValue = new FeatSplitKey(this.featureIdx, "UNORDERED");
+				NodeFeatSplitKey featureValue = new NodeFeatSplitKey(this.nodeIdx, this.featureIdx, "UNORDERED");
 				try {
 					this.output.collect(featureValue, this.unOrderedSplitStats.get(val));
 				} catch (IOException e) {
@@ -133,7 +143,7 @@ public class ExpandNodesMapper implements Mapper<LongWritable, Text, FeatSplitKe
 //				System.out.println("Split : " + split + " tuple: " + this.splitStats.get(s));
 			}
 			try {
-				this.output.collect(new FeatSplitKey(this.featureIdx, "*"), this.marginalStats);
+				this.output.collect(new NodeFeatSplitKey(this.nodeIdx, this.featureIdx, "*"), this.marginalStats);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}

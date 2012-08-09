@@ -43,13 +43,13 @@ public class ExpandNodesController  extends Configured implements Tool{
 //	    conf.setOutputValueClass(ThreeValueTuple.class);
 	    job.setJobName("my-app-advanced");
 	    job.set("FeatureIndex", String.valueOf(this.featureIndex));
-	    job.set("NodeIndex", String.valueOf(this.featureIndex));
+	    job.set("NodeIndex", String.valueOf(this.nodeIndex));
         job.setMapperClass(ExpandNodesMapper.class);
-        job.setMapOutputKeyClass(FeatSplitKey.class);
+        job.setMapOutputKeyClass(NodeFeatSplitKey.class);
 //        job.setOutputKeyClass(NodeFeatSplitKey.class);
         job.setMapOutputValueClass(FourValueTuple.class);
         job.setReducerClass(ExpandNodesReducer.class);
-	    MultipleOutputs.addNamedOutput(job, "bestModel", TextOutputFormat.class, FeatSplitKey.class, FourValueTuple.class);
+	    MultipleOutputs.addNamedOutput(job, "bestModel", TextOutputFormat.class, NodeFeatSplitKey.class, FourValueTuple.class);
 	    MultipleOutputs.addNamedOutput(job, "branchCounts", TextOutputFormat.class, Text.class, DoubleWritable.class);
 	    FileInputFormat.setInputPaths(job, args[0]);
         FileOutputFormat.setOutputPath(job, new Path(args[1]));

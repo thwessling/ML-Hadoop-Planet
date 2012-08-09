@@ -3,16 +3,15 @@ package de.uniheidelberg.cl.advprog.planet.expandNodes;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import de.uniheidelberg.cl.advprog.planet.tree.*;
 
-import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 
 public class NodeFeatSplitKey implements WritableComparable<NodeFeatSplitKey> {
 
-	private int nodeId;
 	private int featId; 
 	private String splitId;
+	private int nodeId;
+	private double varianceReduction;
 	
 	public NodeFeatSplitKey() {}
 	
@@ -21,7 +20,12 @@ public class NodeFeatSplitKey implements WritableComparable<NodeFeatSplitKey> {
 		this.featId = featId; 
 		this.splitId = splitId;
 	}
-	
+	public void setVarianceReduction(double varianceReduction) {
+		this.varianceReduction = varianceReduction;
+	}
+	public double getVarianceReduction() {
+		return varianceReduction;
+	}
 	@Override
 	public void readFields(DataInput arg0) throws IOException {	
 		nodeId = arg0.readInt();
@@ -38,29 +42,27 @@ public class NodeFeatSplitKey implements WritableComparable<NodeFeatSplitKey> {
 
 	@Override
 	public int compareTo(NodeFeatSplitKey arg0) {
-		if (this.nodeId == arg0.nodeId) {
-		 	if (this.featId == arg0.featId) {
-		 		return this.splitId.compareTo(arg0.splitId);
-		 	} else {
-		 		return this.featId - arg0.featId;
-		 	}
-		} else {
-			return this.nodeId - arg0.nodeId;
-		}
+	 	if (this.featId == arg0.featId) {
+	 		if (this.nodeId == arg0.nodeId) {
+	 			return this.splitId.compareTo(arg0.splitId);
+	 		} else { return this.nodeId - arg0.nodeId; }
+	 	} else {
+	 		return this.featId - arg0.featId;
+	 	}
 	}
 
 	public int getFeatId() {
 		return featId;
 	}
-	public String getSplitId() {
-		return splitId;
-	}
 	public int getNodeId() {
 		return nodeId;
 	}
+	public String getSplitId() {
+		return splitId;
+	}
 	@Override
 	public String toString() {
-		String s = "Key: " + this.nodeId + ", " + this.featId + ", " + this.splitId;
+		String s = "node:" + this.nodeId + ":feat:" + this.featId + ":split:" + this.splitId;
 		return s;
 	}
 	

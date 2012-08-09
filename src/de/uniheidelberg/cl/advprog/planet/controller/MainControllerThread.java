@@ -32,7 +32,7 @@ public class MainControllerThread extends Thread {
 	/**
 	 * Nodes for which D* is too large to fit in memory.
 	 */
-	Queue<BranchingNode> mrq;
+	LinkedList<BranchingNode> mrq;
 	/**
 	 * Nodes for which D* fits in memory.
 	 */
@@ -96,46 +96,53 @@ public class MainControllerThread extends Thread {
 		double rightSize = model.getRightBranchInstances();
 		double rightAvgY = model.getBestSplit().getRightBranchY() / rightSize;
 		double leftAvgY = model.getBestSplit().getLeftBranchY() / leftSize;
-		if (leftSize < 1 || this.features.size() == 0) {
+//		Attribute nextAtt = this.features.poll();
+		Attribute nextAtt = this.model.getAttributeByIdx(n.getAtt().getIndex()+1);
+		if (leftSize < 5 || nextAtt == null) {
 			LeafNode leaf = new LeafNode("leaf");
 			tree.addNode(leaf, n);
 			leaf.setInstances(leftSize);
 			leaf.setAverageY(leftAvgY);
 		} else {
-			Attribute nextAtt = this.features.poll();
 			BranchingNode n_daughter = new BranchingNode("node@" + nextAtt.getAttributeName());
 			n_daughter.setAtt(nextAtt);
 			tree.addNode(n_daughter, n);
 			n_daughter.setAverageY(leftAvgY);
 			n_daughter.setAtt(nextAtt);
 			n_daughter.setInstances(leftSize);
-			this.mrq.add(n_daughter);
+			this.mrq.addLast(n_daughter);
 		}
-		if (rightSize < 1 || this.features.size() == 0) {
+		if (rightSize < 5 || nextAtt == null) {
 			LeafNode leaf = new LeafNode("leaf");
 			tree.addNode(leaf, n);
 			leaf.setInstances(rightSize);
 			leaf.setAverageY(rightAvgY);
 		} else {
-			Attribute nextAtt = this.features.poll();
 			BranchingNode n_daughter = new BranchingNode("node@" + nextAtt.getAttributeName() + " [" + rightAvgY + "]");
 			n_daughter.setAtt(nextAtt);
 			tree.addNode(n_daughter, n);
 			n_daughter.setInstances(rightSize);
 			n_daughter.setAverageY(rightAvgY);
 			n_daughter.setAtt(nextAtt);
-			this.mrq.add(n_daughter);
+			this.mrq.addLast(n_daughter);
 		}
-        this.model.printTree(this.model.getRoot());
+//        this.model.printTree(this.model.getRoot());
         GraphWriter.writeGraph("graph.dot", tree);
 	}
 	
+	private void addLeafNode(BranchingNode motherNode) {
+		LeafNode ln = new LeafNode("leaf");
+		ln.setAverageY(motherNode.getAverageY());
+		ln.setInstances(motherNode.getInstances());
+		this.model.addNode(ln, motherNode);
+	}
 	
 	public void loop() throws Exception  {
 		int counter = 0;
 		while (this.mrq.size() > 0) {
 			String outPath = OUTPUTPATH.concat(String.valueOf(counter));
-			BranchingNode n = this.mrq.poll();
+			BranchingNode n = this.mrq.removeFirst();
+			System.out.println("Processing node " + n);
 			// start mr_expandNodes
 			ExpandNodesController contr = new ExpandNodesController(n.getAtt().getIndex(),n.getNodeIndex(), model);
 			// read results and determine best split for node
@@ -143,10 +150,15 @@ public class MainControllerThread extends Thread {
 			// add the split information to the model file
 			OutputReader reader = new OutputReader();
 			Map<Integer, BestModel> models = reader.readBestModels(outPath, model);
+			counter += 1;
+			if (models == null) {
+				this.addLeafNode(n);
+				continue;
+			}
+				
 			for (BestModel model : models.values()) {
 				this.addResult(this.model, model);
 			}
-			counter += 1;
 		}
 
 	}

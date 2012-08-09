@@ -9,9 +9,6 @@ public class BranchingNode extends Node {
 		this.isLeaf = false;
 	}
 	
-//	public double getSplit() {
-//		return split;
-//	}
 	public Attribute getAtt() {
 		return att;
 	}
@@ -24,9 +21,9 @@ public class BranchingNode extends Node {
 	public String toString() {
 		String avgYString = " avg Y: " + this.averageY;
 		if (this.att.getSplit() != null)
-			return "[BRAN] " + this.name + " att '" + att.getAttributeName() + "' split " + att.getSplit().toString() + avgYString;
+			return "'" + this.name + "'@" + this.getNodeIndex() +  " split " + att.getSplit().toString() + avgYString;
 		else 
-			return "[BRAN] " + this.name + " att '" + att.getAttributeName() + "'" + avgYString;
+			return "'" + this.name + "'@" + this.getNodeIndex() + " " + avgYString;
 	}
 
 }

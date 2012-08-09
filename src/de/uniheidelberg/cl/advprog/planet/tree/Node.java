@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Node implements Serializable{
+public abstract class Node implements Serializable{
 	/**
 	 * 
 	 */
@@ -71,13 +71,6 @@ public class Node implements Serializable{
 	}
 	
 	@Override
-	public String toString() {
-		String avgYString = " avg Y: " + this.averageY;
-
-		if (this.isLeaf)
-			return "[LEAF] " + this.name + avgYString;
-		else 
-			return "[BRAN] " + this.name + avgYString;
-	}
+	public abstract String toString();
 	
 }
