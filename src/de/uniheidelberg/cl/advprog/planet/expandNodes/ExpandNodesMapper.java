@@ -16,29 +16,34 @@ import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reporter;
 
 import de.uniheidelberg.cl.advprog.planet.io.Serializer;
-import de.uniheidelberg.cl.advprog.planet.structures.ThreeValueTuple;
+import de.uniheidelberg.cl.advprog.planet.structures.FourValueTuple;
 import de.uniheidelberg.cl.advprog.planet.tree.BranchingNode;
 import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
 import de.uniheidelberg.cl.advprog.planet.tree.Split;
+import de.uniheidelberg.cl.advprog.planet.tree.Split.BRANCH;
 
 /**
  * Word count with relative frequencies. Implemented using the pairs approach.
  */
-public class ExpandNodesMapper implements Mapper<LongWritable, Text, NodeFeatSplitKey, ThreeValueTuple>  {
-		Map<Split, ThreeValueTuple> splitStats;
-		ThreeValueTuple marginalStats;
+public class ExpandNodesMapper implements Mapper<LongWritable, Text, FeatSplitKey, FourValueTuple>  {
+		Map<Split, FourValueTuple> orderedSplitStats;
+		Map<Double, FourValueTuple> unOrderedSplitStats;
+		FourValueTuple marginalStats;
 		
 		DecisionTree tree;
-		private Integer featureIdx;
-		OutputCollector<NodeFeatSplitKey, ThreeValueTuple> output;
+		private int featureIdx;
+		private int nodeIdx;
+		OutputCollector<FeatSplitKey, FourValueTuple> output;
 
 		@Override
 		public void configure(JobConf context) {
 			// read node to be processed
 			this.featureIdx = Integer.parseInt(context.get("FeatureIndex"));
+			this.nodeIdx = Integer.parseInt(context.get("NodeIndex"));
 			System.out.println("Processing feature " + this.featureIdx);
-			this.splitStats = new HashMap<Split, ThreeValueTuple>();
-			this.marginalStats = new ThreeValueTuple(0.0, 0.0, 0.0);
+			this.orderedSplitStats = new HashMap<Split, FourValueTuple>();
+			this.unOrderedSplitStats = new HashMap<Double, FourValueTuple>();
+			this.marginalStats = new FourValueTuple(0.0, 0.0, 0.0);
 			try {
 				this.tree = Serializer.readModelFromDFS(context);
 			} catch (IOException e) {
@@ -51,7 +56,7 @@ public class ExpandNodesMapper implements Mapper<LongWritable, Text, NodeFeatSpl
 		
 		
 		public void map(LongWritable key, Text value,
-				OutputCollector<NodeFeatSplitKey, ThreeValueTuple> output,
+				OutputCollector<FeatSplitKey, FourValueTuple> output,
 				Reporter reporter) throws IOException {
 			String line = value.toString();
 			StringTokenizer itr = new StringTokenizer(line,",");
@@ -63,55 +68,87 @@ public class ExpandNodesMapper implements Mapper<LongWritable, Text, NodeFeatSpl
 			// extract and remove the class label
 			double label = elems.get(elems.size()-1);
 			elems.remove(elems.size()-1);
-			// get Node 
+			
+			/* check whether this instance is active for the current feature */
+			if (!this.tree.isInstanceActive(elems.toArray(new Double[elems.size()]), this.featureIdx))
+				return;
+
+			
+			// get Node for this feature
 			BranchingNode node = (BranchingNode) this.tree.getNodeById(this.featureIdx);
 			// get splits
 			Set<Split> splits = node.getAtt().getPossibleSplits();
-			Set<Double> values = node.getAtt().getValues();
-
 			// collect statistics for each possible split
-			for (Split s : splits) {
-				// compute metric tuples
-				ThreeValueTuple tuple = this.computeSplitMetrics(elems.get(0), label, s);
-				if (tuple == null) continue;
-				
-				if (this.splitStats.get(s) != null) {
-					ThreeValueTuple old_tuple = this.splitStats.get(s);
+			if (node.getAtt().isOrdered()) {
+				for (Split s : splits) {
+					// compute metric tuples
+					FourValueTuple tuple = this.computeSplitMetrics(elems.get(this.featureIdx), label, s);
+					if (tuple == null) continue;
+					
+					if (this.orderedSplitStats.get(s) != null) {
+						FourValueTuple old_tuple = this.orderedSplitStats.get(s);
+						tuple.add(old_tuple);
+					}
+					this.orderedSplitStats.put(s, tuple);
+				}
+			} else {
+				FourValueTuple tuple = this.computeUnorderedStat(elems.get(this.featureIdx), label);
+				if (this.unOrderedSplitStats.get(elems.get(this.featureIdx)) != null) {
+					FourValueTuple old_tuple = this.unOrderedSplitStats.get(elems.get(this.featureIdx));
+					old_tuple.setFeatureVal(elems.get(this.featureIdx));
 					tuple.add(old_tuple);
 				}
-				this.splitStats.put(s, tuple);
+				this.unOrderedSplitStats.put(elems.get(this.featureIdx), tuple);
+//				System.out.println("Tuple for feature value: " + elems.get(this.featureIdx) + ": " +  tuple);
 			}
 			
 			// count marginals
 			this.output = output;
-			this.marginalStats.add(new ThreeValueTuple(label,Math.pow(label, 2),1.0));
+			this.marginalStats.add(new FourValueTuple(label,Math.pow(label, 2),1.0));
 			// do some computation
-//			if (!this.tree.isFeatureActive(elems.toArray(new Double[elems.size()]), this.featureIdx, elems.get(0)));
+			
 		}
 		
 		public void close() { 
-			for (Split s : this.splitStats.keySet()) {
-				NodeFeatSplitKey split = new NodeFeatSplitKey(s.getFeature(), 
-					    s.getFeature(), 
-					    s.getSplitId());
+			for (Split s : this.orderedSplitStats.keySet()) {
+				FeatSplitKey split = new FeatSplitKey(s.getFeature(),s.getHadoopString());
 				try {
-					this.output.collect(split, this.splitStats.get(s));
+					this.output.collect(split, this.orderedSplitStats.get(s));
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+//				System.out.println("Split : " + split + " tuple: " + this.splitStats.get(s));
+			}
+			for (double val : this.unOrderedSplitStats.keySet()) {
+				/*
+				 * for unordered attributes: collect {(featureIdx,"UNORDERED") -> (ThreevalueTuple)} pairs 
+				 * 
+				 */
+				FeatSplitKey featureValue = new FeatSplitKey(this.featureIdx, "UNORDERED");
+				try {
+					this.output.collect(featureValue, this.unOrderedSplitStats.get(val));
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 //				System.out.println("Split : " + split + " tuple: " + this.splitStats.get(s));
 			}
 			try {
-				this.output.collect(new NodeFeatSplitKey(this.featureIdx, -1, "*"), this.marginalStats);
+				this.output.collect(new FeatSplitKey(this.featureIdx, "*"), this.marginalStats);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		};		
 
-		private ThreeValueTuple computeSplitMetrics(Double val, double label, Split s) {
-			if (val < s.getThreshold()) {
+		private FourValueTuple computeUnorderedStat(Double val, double label) {
+			FourValueTuple tuple = new FourValueTuple(label, Math.pow(label, 2), 1.0);
+			tuple.setFeatureVal(val);
+			return tuple;
+		}
+		
+		private FourValueTuple computeSplitMetrics(Double val, double label, Split s) {
+			if (s.getBranchForValue(val).equals(BRANCH.LEFT)) {
 //				System.out.println("Value " + val + ", threshold " + s.getThreshold() + " label: " + label);
-				ThreeValueTuple tuple = new ThreeValueTuple(label, Math.pow(label,2), 1.0);
+				FourValueTuple tuple = new FourValueTuple(label, Math.pow(label,2), 1.0);
 				return tuple;
 			}
 			return null;

@@ -48,7 +48,7 @@ public class Attribute implements Serializable{
 		this.possibleSplits = new HashSet<Split>();
 		if (this.isOrdered) {
 			for (double num : this.values) {
-				Split s = new Split(SPLITTYPE.NUMERIC, this.index);
+				OrderedSplit s = new OrderedSplit(this.index);
 				s.setOrderedSplit(num);
 				possibleSplits.add(s);
 			}

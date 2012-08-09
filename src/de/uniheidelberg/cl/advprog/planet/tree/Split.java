@@ -2,23 +2,28 @@ package de.uniheidelberg.cl.advprog.planet.tree;
 
 import java.io.Serializable;
 
-public class Split implements Serializable {
+public class Split implements Serializable, Splittable {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -7173846856166158003L;
-	private double[] leftBranch;
-	private double[] rightBranch;
-	private double threshold;
 	private int feature;
 	private Node node;
 	private boolean isOrdered;
-	
+	private int leftBranchInstances;
+	private double leftBranchY;
+	private int rightBranchInstances;
+	private double rightBranchY;
 	
 	public enum SPLITTYPE {
-		NUMERIC,CATEGORIAL;
+		ORDERED,CATEGORIAL;
 	}
+	
+	public enum BRANCH {
+		LEFT,RIGHT;
+	}
+	
 	private SPLITTYPE type;
 	
 	public Split(SPLITTYPE type, int feature) {
@@ -37,25 +42,55 @@ public class Split implements Serializable {
 	public Node getNode() {
 		return node;
 	}
-	
-	public double getThreshold() {
-		return threshold;
+	public void setLeftBranchY(double leftBranchY) {
+		this.leftBranchY = leftBranchY;
 	}
-	public void setOrderedSplit(double threshold) {
-		this.threshold = threshold; 
+	public void setRightBranchY(double rightBranchY) {
+		this.rightBranchY = rightBranchY;
+	}
+	public double getLeftBranchY() {
+		return leftBranchY;
+	}
+	public double getRightBranchY() {
+		return rightBranchY;
 	}
 	
 	public String getSplitId() {
-		return this.feature + ":" + type.toString() + ":" + this.threshold; 
+		return "Feature [ " + this.feature + "]:" + type.toString(); 
 	}
 	
 	public int getFeature() {
 		return feature;
 	}
+	
+	public int getLeftBranchInstances() {
+		return leftBranchInstances;
+	}
+	public void setLeftBranchInstances(int leftBranchInstances) {
+		this.leftBranchInstances = leftBranchInstances;
+	}
+	
+	public int getRightBranchInstances() {
+		return rightBranchInstances;
+	}
+	
+	public void setRightBranchInstances(int rightBranchInstances) {
+		this.rightBranchInstances = rightBranchInstances;
+	}
 	@Override
 	public String toString() {
 		return this.getSplitId();
 	}
+	
+	public String getHadoopString() {
+		return ""; 
+	}
+
+	@Override
+	public BRANCH getBranchForValue(double value) {
+		return BRANCH.LEFT;
+	}
+
 	
 	
 }

@@ -2,9 +2,9 @@ package de.uniheidelberg.cl.advprog.planet.controller;
 
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -13,7 +13,9 @@ import java.util.Queue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import de.uniheidelberg.cl.advprog.graph.GraphWriter;
 import de.uniheidelberg.cl.advprog.planet.expandNodes.ExpandNodesController;
+import de.uniheidelberg.cl.advprog.planet.io.InstanceReader;
 import de.uniheidelberg.cl.advprog.planet.io.OutputReader;
 import de.uniheidelberg.cl.advprog.planet.structures.BestModel;
 import de.uniheidelberg.cl.advprog.planet.tree.Attribute;
@@ -21,11 +23,11 @@ import de.uniheidelberg.cl.advprog.planet.tree.BranchingNode;
 import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
 import de.uniheidelberg.cl.advprog.planet.tree.LeafNode;
 import de.uniheidelberg.cl.advprog.planet.tree.Node;
-import de.uniheidelberg.cl.advprog.planet.tree.Split;
-import de.uniheidelberg.cl.advprog.planet.tree.Split.SPLITTYPE;
 
 public class MainControllerThread extends Thread {
 
+	private static final String OUTPUTPATH = "test_out_";
+	
 	DecisionTree model;
 	/**
 	 * Nodes for which D* is too large to fit in memory.
@@ -48,9 +50,11 @@ public class MainControllerThread extends Thread {
 		BufferedReader br = new BufferedReader(new FileReader("data/features.txt"));
 		String[] featuresString = br.readLine().split(",");
 		this.features = new LinkedList<Attribute>();
-		for (String f : featuresString) {
+		int featureIndex = 0;
+		for (int i = 0; i<featuresString.length-1; i++) {
+			String f = featuresString[i];
 			// split the feature file and read value range
-			Attribute att = new Attribute(f.split(":")[0],0);
+			Attribute att = new Attribute(f.split(":")[0],featureIndex);
 			// value range
 			Pattern p = Pattern.compile("([^\\-]+)\\-(.*)");
 			Matcher m = p.matcher(f.split(":")[1]);
@@ -62,7 +66,7 @@ public class MainControllerThread extends Thread {
 				for (double val = firstVal; val <= scndVal; val++) {
 					att.addValue(val);
 				}
-			} else { // not ordered
+			} else { // not ordered; possible values separated by ;
 				att.setOrdered(false);
 				for (String val : f.split(":")[1].split(";")) {
 					att.addValue(Double.valueOf(val));
@@ -70,9 +74,10 @@ public class MainControllerThread extends Thread {
 			}
 			this.features.add(att);
 			tree.addAttribute(att);
+			featureIndex++;
 		}
 		Attribute rootAtt = this.features.poll();
-		BranchingNode n = new BranchingNode(rootAtt.getAttributeName());
+		BranchingNode n = new BranchingNode("node@" + rootAtt.getAttributeName());
 		n.setAtt(rootAtt);
 		tree.setRoot(n);
 		tree.addNode(n, null);
@@ -85,52 +90,63 @@ public class MainControllerThread extends Thread {
 	private void addResult(DecisionTree tree, BestModel model) {
 		// add the best split to the decision tree
 		BranchingNode n = (BranchingNode) tree.getNodeById(model.getNode());
-		Split s = new Split(SPLITTYPE.NUMERIC, model.getFeatNum());
-		s.setOrderedSplit(model.getSplit());
-		n.getAtt().setSplit(s);
+		n.getAtt().setSplit(model.getBestSplit());
 		// compute data set size in left and right branch
 		double leftSize = model.getLeftBranchInstances();
 		double rightSize = model.getRightBranchInstances();
-		if (leftSize < 30) {
+		double rightAvgY = model.getBestSplit().getRightBranchY() / rightSize;
+		double leftAvgY = model.getBestSplit().getLeftBranchY() / leftSize;
+		if (leftSize < 1 || this.features.size() == 0) {
 			LeafNode leaf = new LeafNode("leaf");
 			tree.addNode(leaf, n);
+			leaf.setInstances(leftSize);
+			leaf.setAverageY(leftAvgY);
 		} else {
 			Attribute nextAtt = this.features.poll();
-			BranchingNode n_daughter = new BranchingNode(nextAtt.getAttributeName());
+			BranchingNode n_daughter = new BranchingNode("node@" + nextAtt.getAttributeName());
 			n_daughter.setAtt(nextAtt);
 			tree.addNode(n_daughter, n);
+			n_daughter.setAverageY(leftAvgY);
 			n_daughter.setAtt(nextAtt);
-			this.mrq.add(n);
+			n_daughter.setInstances(leftSize);
+			this.mrq.add(n_daughter);
 		}
-		if (rightSize < 30) {
+		if (rightSize < 1 || this.features.size() == 0) {
 			LeafNode leaf = new LeafNode("leaf");
 			tree.addNode(leaf, n);
+			leaf.setInstances(rightSize);
+			leaf.setAverageY(rightAvgY);
 		} else {
 			Attribute nextAtt = this.features.poll();
-			BranchingNode n_daughter = new BranchingNode(nextAtt.getAttributeName());
+			BranchingNode n_daughter = new BranchingNode("node@" + nextAtt.getAttributeName() + " [" + rightAvgY + "]");
 			n_daughter.setAtt(nextAtt);
 			tree.addNode(n_daughter, n);
+			n_daughter.setInstances(rightSize);
+			n_daughter.setAverageY(rightAvgY);
 			n_daughter.setAtt(nextAtt);
 			this.mrq.add(n_daughter);
 		}
         this.model.printTree(this.model.getRoot());
+        GraphWriter.writeGraph("graph.dot", tree);
 	}
 	
 	
-	public void loop() throws Exception {
+	public void loop() throws Exception  {
+		int counter = 0;
 		while (this.mrq.size() > 0) {
+			String outPath = OUTPUTPATH.concat(String.valueOf(counter));
 			BranchingNode n = this.mrq.poll();
 			// start mr_expandNodes
-			ExpandNodesController contr = new ExpandNodesController(n.getAtt().getIndex(), model);
+			ExpandNodesController contr = new ExpandNodesController(n.getAtt().getIndex(),n.getNodeIndex(), model);
 			// read results and determine best split for node
-			contr.run(new String[]{"test", "test_out"});
+			contr.run(new String[]{"test", outPath});
 			// add the split information to the model file
 			OutputReader reader = new OutputReader();
-			Map<Integer, BestModel> models = reader.readBestModels();
+			Map<Integer, BestModel> models = reader.readBestModels(outPath, model);
 			for (BestModel model : models.values()) {
 				this.addResult(this.model, model);
 			}
-            this.deleteReducerOutput();
+			counter += 1;
 		}
 
 	}

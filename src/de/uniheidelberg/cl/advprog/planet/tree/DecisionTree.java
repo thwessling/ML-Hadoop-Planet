@@ -7,6 +7,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import de.uniheidelberg.cl.advprog.planet.tree.Split.BRANCH;
+
 
 public class DecisionTree implements Serializable {
 
@@ -18,14 +20,16 @@ public class DecisionTree implements Serializable {
 	private Set<Node> nodeSet;
 	private List<Attribute> attributeSet;
 	private Node root;
-	private HashMap<Integer, Node> idxToNode;
-	
-	
+	/**
+	 * Mapping from feature indices to node objects to access a node for a specific feature.
+	 * Note that the feature index is identical to the node index for convenience.
+	 */
+	private HashMap<Integer, BranchingNode> idxToNode;
 	
 	public DecisionTree() {
 		nodeSet = new HashSet<Node>();
 		attributeSet = new ArrayList<Attribute>();
-		this.idxToNode = new HashMap<Integer, Node>();
+		this.idxToNode = new HashMap<Integer, BranchingNode>();
 	}
 	
 	public void setRoot(Node root) {
@@ -36,7 +40,7 @@ public class DecisionTree implements Serializable {
 		return root;
 	}
 	
-	public Node getNodeById(int id) {
+	public BranchingNode getNodeById(int id) {
 		return this.idxToNode.get(id);
 	}
 	
@@ -48,7 +52,7 @@ public class DecisionTree implements Serializable {
 		if (! n.isLeaf()) {
 			// if this is a branching node: add the feature->node mapping
 			BranchingNode b = (BranchingNode) n;
-			this.idxToNode.put(b.getAtt().getIndex(), n);
+			this.idxToNode.put(b.getAtt().getIndex(), b);
 		}
 	}
 	
@@ -61,12 +65,12 @@ public class DecisionTree implements Serializable {
 	}
 	
 	
-	public boolean isFeatureActive(Double[] doubles, int featureIdx, double value) {
+	public boolean isInstanceActive(Double[] featureValues, int featureIdx) {
 		BranchingNode motherNode = (BranchingNode) this.root;
 		// go down the tree up to featureIdx
-		for (int i = 0; i < featureIdx - 1; i++) {
-			if (motherNode.getAtt().getIndex() == featureIdx) {
-				if (doubles[i] < motherNode.getSplit()) {
+		for (int i = 0; i < featureIdx ; i++) {
+			if (motherNode.getAtt().getIndex() == i) {
+				if (motherNode.getAtt().getSplit().getBranchForValue(featureValues[i]).equals(BRANCH.LEFT)) {
 					// go down left branch
 					Node leftBranchTarget = motherNode.getDaughters().get(0);
 					if (leftBranchTarget.isLeaf())
@@ -88,14 +92,15 @@ public class DecisionTree implements Serializable {
 		
 	}
 	
+	
 	public void printTree(Node n) {
 		String motherString = "<null>";
 		if (n.getMother() != null) {
 			motherString = "<" + n.getMother().toString() + ">";
-            System.out.println(motherString + " --> " + n.toString());
 		}
+		System.out.println(motherString + " --> " + n.toString());
 		if (n.getDaughters().size() > 0) {
-            for (int i = 0; i < n.getDaughters().size() - 1; i++) {
+            for (int i = 0; i < n.getDaughters().size() ; i++) {
                 printTree(n.getDaughters().get(i));
                 //System.out.println(n.toString() + " --> " + n.getDaughters().get(i));
             }
