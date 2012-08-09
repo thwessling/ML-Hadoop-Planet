@@ -1,1 +1,1 @@
-f1:0-5,f2:0-1,f3:0;2;4,f4:0-1
+outlook:0;1;2,temperature:64-85,humidity:64-96,windy:0-1,play:0-1

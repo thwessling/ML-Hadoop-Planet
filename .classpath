@@ -107,5 +107,6 @@
 	<classpathentry kind="lib" path="/home/students/boegel/Downloads/hadoop-2.0.0-alpha/share/hadoop/common/lib/xmlenc-0.52.jar"/>
 	<classpathentry kind="lib" path="/home/students/boegel/Downloads/hadoop-2.0.0-alpha/share/hadoop/common/lib/zookeeper-3.4.2.jar"/>
 	<classpathentry kind="lib" path="/home/students/boegel/Downloads/hadoop-2.0.0-alpha/share/hadoop/httpfs/tomcat/bin/bootstrap.jar"/>
+	<classpathentry kind="lib" path="lib/jgrapht-jdk1.6.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

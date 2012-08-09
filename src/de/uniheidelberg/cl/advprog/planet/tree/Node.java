@@ -11,12 +11,24 @@ public class Node implements Serializable{
 	private static final long serialVersionUID = -7560082326651977480L;
 	protected boolean isLeaf;
 	private List<Node> daughters;
-	private Node mother;
-	private String name;
+	protected Node mother;
+	protected String name;
+	protected double averageY;
+	protected double instances;
+	private int nodeIndex;
 	
 	public Node(String name) {
 		this.name = name;
 		this.daughters = new ArrayList<Node>();
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	public int getNodeIndex() {
+		return nodeIndex;
+	}
+	public void setNodeIndex(int nodeIndex) {
+		this.nodeIndex = nodeIndex;
 	}
 	
 	public void setMother(Node mother) {
@@ -43,10 +55,29 @@ public class Node implements Serializable{
 	public boolean isLeaf() {
 		return isLeaf;
 	}
+	public void setAverageY(double averageY) {
+		this.averageY = averageY;
+	}
+	public double getAverageY() {
+		return averageY;
+	}
+	
+	public void setInstances(double instances) {
+		this.instances = instances;
+	}
+	
+	public double getInstances() {
+		return instances;
+	}
 	
 	@Override
 	public String toString() {
-		return String.valueOf("Node " + this.name + "; leaf? " + this.isLeaf() );
+		String avgYString = " avg Y: " + this.averageY;
+
+		if (this.isLeaf)
+			return "[LEAF] " + this.name + avgYString;
+		else 
+			return "[BRAN] " + this.name + avgYString;
 	}
 	
 }

@@ -1,18 +1,24 @@
 package de.uniheidelberg.cl.advprog.planet.structures;
 
+import de.uniheidelberg.cl.advprog.planet.tree.Split;
+
 public class BestModel {
 	int node;
-	double split;
 	long leftBranchInstances;
 	long rightBranchInstances;
 	int featNum;
+	Split bestSplit;
 	
 	
-	public BestModel(int node, double split) {
+	public BestModel(int node) {
 		this.node = node;
-		this.split = split;
 	}
-	
+	public void setBestSplit(Split bestSplit) {
+		this.bestSplit = bestSplit;
+	}
+	public Split getBestSplit() {
+		return bestSplit;
+	}
 	public void setLeftBranchInstances(long leftBranchInstances) {
 		this.leftBranchInstances = leftBranchInstances;
 	}
@@ -37,7 +43,4 @@ public class BestModel {
 		return node;
 	}
 	
-	public double getSplit() {
-		return split;
-	}
 }
