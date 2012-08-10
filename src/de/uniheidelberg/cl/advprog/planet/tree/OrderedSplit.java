@@ -1,8 +1,14 @@
 package de.uniheidelberg.cl.advprog.planet.tree;
 
-import de.uniheidelberg.cl.advprog.planet.tree.Split.SPLITTYPE;
-
-public class OrderedSplit extends Split implements Splittable {
+/**
+ * An ordered split is a {@link Split} of ordered attributes, i.e. with a fixed 
+ * threshold.
+ * 
+ * 
+ * @author boegel
+ *
+ */
+public class OrderedSplit extends Split  {
 
 	/**
 	 * 

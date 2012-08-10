@@ -6,12 +6,15 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.WritableComparable;
 
+import de.uniheidelberg.cl.advprog.planet.structures.FourValueTuple;
+
 public class NodeFeatSplitKey implements WritableComparable<NodeFeatSplitKey> {
 
 	private int featId; 
 	private String splitId;
 	private int nodeId;
 	private double varianceReduction;
+	private FourValueTuple stats;
 	
 	public NodeFeatSplitKey() {}
 	
@@ -22,6 +25,12 @@ public class NodeFeatSplitKey implements WritableComparable<NodeFeatSplitKey> {
 	}
 	public void setVarianceReduction(double varianceReduction) {
 		this.varianceReduction = varianceReduction;
+	}
+	public FourValueTuple getStats() {
+		return stats;
+	}
+	public void setStats(FourValueTuple stats) {
+		this.stats = stats;
 	}
 	public double getVarianceReduction() {
 		return varianceReduction;
@@ -49,6 +58,11 @@ public class NodeFeatSplitKey implements WritableComparable<NodeFeatSplitKey> {
 	 	} else {
 	 		return this.featId - arg0.featId;
 	 	}
+	}
+	
+	@Override
+	public int hashCode() {
+		return this.featId * this.nodeId * this.splitId.hashCode();
 	}
 
 	public int getFeatId() {

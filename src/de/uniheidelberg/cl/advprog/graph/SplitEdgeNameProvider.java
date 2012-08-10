@@ -1,8 +1,14 @@
 package de.uniheidelberg.cl.advprog.graph;
 
 import org.jgrapht.ext.EdgeNameProvider;
-import org.jgrapht.graph.DefaultEdge;
 
+/**
+ * Name provider for an edge, mainly consisting of the 
+ * number of instances at each branch.
+ *  
+ * @author boegel
+ *
+ */
 public class SplitEdgeNameProvider implements EdgeNameProvider<SplitEdge> {
 
 

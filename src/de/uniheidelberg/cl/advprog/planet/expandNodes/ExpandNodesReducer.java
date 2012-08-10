@@ -21,16 +21,40 @@ import de.uniheidelberg.cl.advprog.planet.tree.UnorderedSplit;
 
 
 
+/**
+ * Each Mapper processes ONE feature and ONE node.
+ * 
+ * The following metrics are computed and emitted as values: 
+ * <ul>
+ * 	<li>Sum of left branch y values</li>
+ *  <li>Squared sum of left branch y values</li
+ *  <li>Number of left branch instances</li>
+ * </ul> 
+ * 
+ * The keys depend on the attribute type.
+ * 
+ * For ORDERED attributes:
+ * The metrics for all splits are accumulated and emitted once after all instances have been  
+ * processed.
+ * Output: { [NodeIndex,FeatureIndex,Split] -> metric }
+ * 
+ * For UNORDERED attributes:
+ * The metrics are counted accumulated for each possible feature value of the feature.
+ * Output: { [NodeIndex,FeatureIndex,"UNORDERED"] -> metric }
+ * 
+ * MARGINALS:
+ * In addition, marginals are computed i.e. the metrics are computed for each instance.
+ * Output: { [NodeIndex,FeatureIndex,*] -> metric }
+ *  
+ */
 public class ExpandNodesReducer implements Reducer<NodeFeatSplitKey, FourValueTuple,NullWritable,NullWritable> {
 
-	Map<NodeFeatSplitKey,FourValueTuple> splitMetrics;
-	//OutputCollector<NodeFeatSplitKey, ThreeValueTuple> output;
-	Map<Integer, NodeFeatSplitKey> bestSplits;
+    NodeFeatSplitKey bestSplit;
+    double bestSplitScore;
 	Map<Integer, Double> bestSplitLeftBranchInstances;
 	Map<Integer, Double> bestSplitLeftBranchYsum;
 	Map<Integer, Double> bestSplitRightBranchInstances;
 	Map<Integer, Double> bestSplitRightBranchYsum;
-	Map<NodeFeatSplitKey, Double> splitScores;
 	Map<Double, FourValueTuple> unorderedXtoY;
 	Map<Integer, FourValueTuple> marginals;
 	private MultipleOutputs mos;
@@ -41,13 +65,10 @@ public class ExpandNodesReducer implements Reducer<NodeFeatSplitKey, FourValueTu
 	@Override
 	public void configure(JobConf arg0) {
 		this.marginals = new HashMap<Integer, FourValueTuple>();
-		this.bestSplits = new HashMap<Integer, NodeFeatSplitKey>();
 		this.bestSplitLeftBranchInstances = new HashMap<Integer, Double>();
 		this.bestSplitRightBranchInstances = new HashMap<Integer, Double>();
 		this.bestSplitLeftBranchYsum = new HashMap<Integer, Double>();
 		this.bestSplitRightBranchYsum = new HashMap<Integer, Double>();
-		this.splitScores = new HashMap<NodeFeatSplitKey, Double>();
-		this.splitMetrics = new HashMap<NodeFeatSplitKey, FourValueTuple>();
 		mos = new MultipleOutputs(arg0);
 		this.unorderedXtoY = new HashMap<Double, FourValueTuple>();
 	}
@@ -56,14 +77,9 @@ public class ExpandNodesReducer implements Reducer<NodeFeatSplitKey, FourValueTu
 		
 	public void reduce(NodeFeatSplitKey key, Iterator<FourValueTuple> values,
 			OutputCollector<NullWritable, NullWritable> output, Reporter reporter)  {
-		/*
-		 * keys:
-		 * 1) n: all agg_tup_n tuples output by the mappers; feature idx = -1
-		 * 2) 
-		 */
 		if (key.getSplitId().equals("*")) {
 			/*
-			 * marginals 
+			 * MARGINALS 
 			 */
 			if (marginals.get(key.getNodeId()) == null) {
 				marginals.put(key.getNodeId(), new FourValueTuple(0, 0, 0));
@@ -75,45 +91,42 @@ public class ExpandNodesReducer implements Reducer<NodeFeatSplitKey, FourValueTu
 				marginals.put(key.getNodeId(), val_old);
 			}
 		} else if (key.getSplitId().equals("UNORDERED")) {
+			/*
+			 * UNORDERED
+			 * Store counts for the currently processed feature value.
+			 */
 			while (values.hasNext()) {
 				FourValueTuple val = values.next();
 				FourValueTuple newVal = new FourValueTuple(val.getLeftBranchSum(), val.getSquareSum(), val.getInstanceNum());
 				newVal.setFeatureVal(val.getFeatureVal());
 				this.unorderedXtoY.put(Double.valueOf(newVal.getFeatureVal()), newVal);
 			}
-		} else {
-			while (values.hasNext()) {
-				FourValueTuple val = values.next();
-				double varianceReduction = this.varianceReduction(val, marginals.get(key.getNodeId()));
-				// check if there is a higher split
-				if (this.bestSplits.get(key.getNodeId()) == null || 
-						this.splitScores.get(bestSplits.get(key.getNodeId())) == null || 
-						this.splitScores.get(bestSplits.get(key.getNodeId())) < varianceReduction) {
-					this.splitScores.put(bestSplits.get(key.getNodeId()), varianceReduction);
-					this.bestSplits.put(key.getNodeId(), key);
-					this.bestSplitLeftBranchInstances.put(key.getNodeId(), val.getInstanceNum());
-					this.bestSplitLeftBranchYsum.put(key.getNodeId(), val.getLeftBranchSum());
-					this.bestSplitRightBranchInstances.put(key.getNodeId(), marginals.get(key.getNodeId()).getInstanceNum() -  val.getInstanceNum());
-					this.bestSplitRightBranchYsum.put(key.getNodeId(), marginals.get(key.getNodeId()).getLeftBranchSum() - val.getLeftBranchSum());
-				}
-				System.out.println(key.toString() + " value: " + val.toString() + " variance reduction: " + varianceReduction);
+		} else { 
+			/*
+			 *	ORDERED attribute
+			 *  Aggregate all counts for each split and determine best split.
+			 *  
+			 */
+			FourValueTuple val = this.aggregateKeyCounts(values);
+			
+			double varianceReduction = this.varianceReduction(val , marginals.get(key.getNodeId()));
+			System.out.println(key.toString() + "(" + key.hashCode() + ") value: " + val .toString() + " variance reduction: " + varianceReduction);
+
+			// if there is a higher split: update
+            if (this.bestSplit == null || 
+                    this.bestSplitScore < varianceReduction) {
+				this.bestSplitScore = varianceReduction;
+				this.bestSplit = new NodeFeatSplitKey(key.getNodeId(), key.getFeatId(), key.getSplitId());
+				this.bestSplitLeftBranchInstances.put(key.getNodeId(), val .getInstanceNum());
+				this.bestSplitLeftBranchYsum.put(key.getNodeId(), val .getLeftBranchSum());
+				this.bestSplitRightBranchInstances.put(key.getNodeId(), marginals.get(key.getNodeId()).getInstanceNum() -  val .getInstanceNum());
+				this.bestSplitRightBranchYsum.put(key.getNodeId(), marginals.get(key.getNodeId()).getLeftBranchSum() - val .getLeftBranchSum());
 			}
-//			while (values.hasNext()) {
-//				ThreeValueTuple val = values.next();
-//				ThreeValueTuple val_old = splitMetrics.get(key);
-//				if (val_old != null) {
-//					System.out.printf(val + " +  " + val_old);
-//					val_old.add(val);
-//					splitMetrics.put(key, val_old);
-//					System.out.printf(" = %s\n", splitMetrics.get(key));
-//				} else {
-//					splitMetrics.put(key, val);
-//				}
-//			}
+
 		}
 		/* all values processed: compute best split for unordered attributes */
 		if (key.getSplitId().equals("UNORDERED")) {
-			UnorderedSplit split = this.computeBreimanSplit(key);
+			UnorderedSplit split = this.computeBreimanSplit(key.getNodeId());
 			// split id (for output) = feature values concatenated with ; 
 			String splitId = "";
 			for (double val : split.getLeftBranch()) {
@@ -121,38 +134,45 @@ public class ExpandNodesReducer implements Reducer<NodeFeatSplitKey, FourValueTu
 			}
 			splitId = splitId.substring(1);
 			NodeFeatSplitKey outputKey = new NodeFeatSplitKey(key.getNodeId(),key.getFeatId(), splitId);
-			this.bestSplits.put(key.getNodeId(), outputKey);
+            this.bestSplit = outputKey;
 
 			this.bestSplitLeftBranchInstances.put(key.getNodeId(), (double) split.getLeftBranchInstances());
-			//System.out.println("Marginals for node " + key.getNodeId() + ":" marginals.get(key.getNodeId()).getLeft );
 			this.bestSplitRightBranchInstances.put(key.getNodeId(), marginals.get(key.getNodeId()).getInstanceNum() - (double) split.getLeftBranchInstances());
 			this.bestSplitLeftBranchYsum.put(key.getNodeId(), split.getLeftBranchY());
 			this.bestSplitRightBranchYsum.put(key.getNodeId(), marginals.get(key.getNodeId()).getLeftBranchSum() - split.getLeftBranchY());
 		}
-		
 		this.reporter = reporter;
-		
-	};
+	}
+	private FourValueTuple aggregateKeyCounts(Iterator<FourValueTuple> tuples) {
+		FourValueTuple tuple = new FourValueTuple();
+		while (tuples.hasNext()) {
+			tuple.add(tuples.next());
+		}
+		return tuple;
+	}
 
-	private UnorderedSplit computeBreimanSplit(NodeFeatSplitKey key) {
+	/**
+	 * Determines the best split for a set of unordered attributes using 
+	 * the Breiman algorithm.
+	 * 
+	 * @param nodeId The node id currently being processed. 
+	 * @return The optimal split for this attribute.
+	 */
+	private UnorderedSplit computeBreimanSplit(int nodeId) {
 		TreeMap<Double, List<Double>> avgYtoValMap = new TreeMap<Double, List<Double>>();
 		// sort x values according to their average y value
 		for (double xVal : this.unorderedXtoY.keySet()) {
-			double avgY = this.unorderedXtoY.get(xVal).getLeftBranchSum() / this.marginals.get(key.getNodeId()).getLeftBranchSum();
-//			System.out.println("xValue: " + xVal + " y value: " + this.unorderedXtoY.get(xVal) + " avgY " + avgY);
+			double avgY = this.unorderedXtoY.get(xVal).getLeftBranchSum() / this.marginals.get(nodeId).getLeftBranchSum();
 
 			if (!avgYtoValMap.containsKey(avgY))
 				avgYtoValMap.put(avgY, new ArrayList<Double>());
 			avgYtoValMap.get(avgY).add(xVal);
 		}
 		
-//		System.out.println("Ordered split keys breiman:");
-		UnorderedSplit split = new UnorderedSplit(key.getNodeId());
+		UnorderedSplit split = new UnorderedSplit(nodeId);
 		double bestReduction = 0.0;
 		for (double avgY : avgYtoValMap.descendingKeySet()) {
-//			System.out.printf("\nclass association: %s", avgY);
 			for (double featVal : avgYtoValMap.get(avgY)) {
-//				System.out.printf("\t feature: " + featVal + "\n");
 				split.addLeftBranchItem(featVal);
 				/* compute complexity reduction with this feat
 				 * if not greater: return */
@@ -161,10 +181,8 @@ public class ExpandNodesReducer implements Reducer<NodeFeatSplitKey, FourValueTu
 					// add up all tuples in the left branch split
 					leftBranchTuple.add(this.unorderedXtoY.get(splitFeatVal));
 				}
-//				System.out.println("Left branch tuple " + leftBranchTuple);
 				// compute complexity reduction
-				double reduction = this.varianceReduction(leftBranchTuple, this.marginals.get(key.getNodeId()));
-//				System.out.println("Reduction: " + reduction);
+				double reduction = this.varianceReduction(leftBranchTuple, this.marginals.get(nodeId));
 				if (reduction > bestReduction) {
 					bestReduction = reduction;
 					split.setLeftBranchInstances((int) leftBranchTuple.getInstanceNum());
@@ -180,17 +198,15 @@ public class ExpandNodesReducer implements Reducer<NodeFeatSplitKey, FourValueTu
 	}
 	
 	
+	@SuppressWarnings("unchecked")
 	public void close() {
 		try {
-			for (int nodeId : this.bestSplits.keySet()) {
-				System.out.println("Writing");
-				double yLeftBranch = this.bestSplitLeftBranchYsum.get(nodeId);
-				double yRightBranch = this.bestSplitRightBranchYsum.get(nodeId);
-				mos.getCollector("bestModel",this.reporter).collect(this.bestSplits.get(nodeId), new FourValueTuple(yLeftBranch, yRightBranch, 0));
-				mos.getCollector("branchCounts", this.reporter).collect(new Text("node:" + nodeId + ":left:"), new DoubleWritable(this.bestSplitLeftBranchInstances.get(nodeId)));
-				mos.getCollector("branchCounts", this.reporter).collect(new Text("node:" + nodeId + ":right:"), new DoubleWritable(this.bestSplitRightBranchInstances.get(nodeId)));
-				//output.collect(this.bestSplits.get(nodeId), new ThreeValueTuple(0, 0, 0));
-			}
+		    int nodeId = this.bestSplit.getNodeId();
+			double yLeftBranch = this.bestSplitLeftBranchYsum.get(nodeId);
+			double yRightBranch = this.bestSplitRightBranchYsum.get(nodeId);
+            mos.getCollector("bestModel",this.reporter).collect(this.bestSplit, new FourValueTuple(yLeftBranch, yRightBranch, 0));
+			mos.getCollector("branchCounts", this.reporter).collect(new Text("node:" + nodeId + ":left:"), new DoubleWritable(this.bestSplitLeftBranchInstances.get(nodeId)));
+			mos.getCollector("branchCounts", this.reporter).collect(new Text("node:" + nodeId + ":right:"), new DoubleWritable(this.bestSplitRightBranchInstances.get(nodeId)));
 			mos.close();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -199,11 +215,8 @@ public class ExpandNodesReducer implements Reducer<NodeFeatSplitKey, FourValueTu
 	};
 	
 	private double variance(FourValueTuple branch) {
-		double meanOfSquaredSum = branch.getLeftBranchSum()  / branch.getInstanceNum();
-		double squaredMean = branch.getSquareSum()/ branch.getInstanceNum();
 		double var = (branch.getSquareSum() - ((branch.getLeftBranchSum() * branch.getLeftBranchSum())/branch.getInstanceNum())) / branch.getInstanceNum();
 		return var;
-		//return Math.sqrt(meanOfSquaredSum - squaredMean);
 	}
 	
 	private double varianceReduction(FourValueTuple leftBranch, FourValueTuple marginals) {
