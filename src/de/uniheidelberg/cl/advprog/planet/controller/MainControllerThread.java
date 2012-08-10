@@ -1,33 +1,42 @@
 package de.uniheidelberg.cl.advprog.planet.controller;
 
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import de.uniheidelberg.cl.advprog.graph.GraphWriter;
 import de.uniheidelberg.cl.advprog.planet.expandNodes.ExpandNodesController;
 import de.uniheidelberg.cl.advprog.planet.io.InstanceReader;
 import de.uniheidelberg.cl.advprog.planet.io.OutputReader;
+import de.uniheidelberg.cl.advprog.planet.io.Serializer;
 import de.uniheidelberg.cl.advprog.planet.structures.BestModel;
 import de.uniheidelberg.cl.advprog.planet.tree.Attribute;
 import de.uniheidelberg.cl.advprog.planet.tree.BranchingNode;
 import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
 import de.uniheidelberg.cl.advprog.planet.tree.LeafNode;
 import de.uniheidelberg.cl.advprog.planet.tree.Node;
+import de.uniheidelberg.cl.advprog.planet.tree.NodeFactory;
+import de.uniheidelberg.cl.advprog.planet.tree.OrderedSplit;
 
-public class MainControllerThread extends Thread {
+/**
+ * This class controls the decision tree model creation by 
+ * reading feature specifications and sending partial jobs to 
+ * Hadoop. The produced results are parsed and integrated into 
+ * the model file. 
+ *  
+ * @author boegel
+ *
+ */
+public class MainControllerThread {
 
 	private static final String OUTPUTPATH = "test_out_";
 	
+	/**
+	 * Decision tree model.
+	 */
 	DecisionTree model;
 	/**
 	 * Nodes for which D* is too large to fit in memory.
@@ -38,153 +47,137 @@ public class MainControllerThread extends Thread {
 	 */
 	List<Node> inMemQ;
 	
-	Queue<Attribute> features;
-	
+	/**
+	 * Creates a new instance and initialized collections.
+	 */
 	public MainControllerThread() {
 		this.mrq  = new LinkedList<BranchingNode>();
 		this.inMemQ = new ArrayList<Node>();
 	}
 	
+	/**
+	 * Create the initial decision tree model with a root node and 
+	 * a list of features.
+	 * @return {@link DecisionTree} model.
+	 * @throws IOException If the feature specification cannot be read.
+	 */
 	private DecisionTree createInitialModel() throws IOException {
 		DecisionTree tree = new DecisionTree();
-		BufferedReader br = new BufferedReader(new FileReader("data/features.txt"));
-		String[] featuresString = br.readLine().split(",");
-		this.features = new LinkedList<Attribute>();
-		int featureIndex = 0;
-		for (int i = 0; i<featuresString.length-1; i++) {
-			String f = featuresString[i];
-			// split the feature file and read value range
-			Attribute att = new Attribute(f.split(":")[0],featureIndex);
-			// value range
-			Pattern p = Pattern.compile("([^\\-]+)\\-(.*)");
-			Matcher m = p.matcher(f.split(":")[1]);
-			if (m.matches()) {
-				// ordered
-				double firstVal = Double.valueOf(m.group(1));
-				double scndVal =  Double.valueOf(m.group(2));
-				att.setOrdered(true);
-				for (double val = firstVal; val <= scndVal; val++) {
-					att.addValue(val);
-				}
-			} else { // not ordered; possible values separated by ;
-				att.setOrdered(false);
-				for (String val : f.split(":")[1].split(";")) {
-					att.addValue(Double.valueOf(val));
-				}
-			}
-			this.features.add(att);
+		// read the list of attributes and feature ranges
+		InstanceReader reader = new InstanceReader();
+
+		for (Attribute att : reader.readAttributeSpecs()) {
 			tree.addAttribute(att);
-			featureIndex++;
 		}
-		Attribute rootAtt = this.features.poll();
+		// set the first feature as the root node
+		Attribute rootAtt = tree.getAttributeByIdx(0);
 		BranchingNode n = new BranchingNode("node@" + rootAtt.getAttributeName());
 		n.setAtt(rootAtt);
 		tree.setRoot(n);
 		tree.addNode(n, null);
 		this.mrq.add(n);
-		
 		return tree;
 	}
 	
-	
-	private void addResult(DecisionTree tree, BestModel model) {
-		// add the best split to the decision tree
-		BranchingNode n = (BranchingNode) tree.getNodeById(model.getNode());
+	/**
+	 * Adds the best split to the decision tree and determines 
+	 * the nodes to be processed next. 
+	 * 
+	 * @param model The best model for the current node.
+	 */
+	private void addResult(BestModel model) {
+		// get the node for this best split
+		BranchingNode n = (BranchingNode) this.model.getNodeById(model.getNode());
 		n.getAtt().setSplit(model.getBestSplit());
-		// compute data set size in left and right branch
-		double leftSize = model.getLeftBranchInstances();
-		double rightSize = model.getRightBranchInstances();
-		double rightAvgY = model.getBestSplit().getRightBranchY() / rightSize;
-		double leftAvgY = model.getBestSplit().getLeftBranchY() / leftSize;
-//		Attribute nextAtt = this.features.poll();
+
+		// add new nodes to the mother node depending on the best model
+		NodeFactory factory = new NodeFactory();
 		Attribute nextAtt = this.model.getAttributeByIdx(n.getAtt().getIndex()+1);
-		if (leftSize < 5 || nextAtt == null) {
-			LeafNode leaf = new LeafNode("leaf");
-			tree.addNode(leaf, n);
-			leaf.setInstances(leftSize);
-			leaf.setAverageY(leftAvgY);
-		} else {
-			BranchingNode n_daughter = new BranchingNode("node@" + nextAtt.getAttributeName());
-			n_daughter.setAtt(nextAtt);
-			tree.addNode(n_daughter, n);
-			n_daughter.setAverageY(leftAvgY);
-			n_daughter.setAtt(nextAtt);
-			n_daughter.setInstances(leftSize);
-			this.mrq.addLast(n_daughter);
+		Node[] daughters = factory.expandNode(model, n, nextAtt);
+		
+		for (Node d : daughters) {
+			this.model.addNode(d, n);
+			if (!d.isLeaf()) {
+				/*
+				 * if this is not a leaf: add it to the queue of processable nodes
+				 */
+				this.mrq.addLast((BranchingNode) d);
+			}
 		}
-		if (rightSize < 5 || nextAtt == null) {
-			LeafNode leaf = new LeafNode("leaf");
-			tree.addNode(leaf, n);
-			leaf.setInstances(rightSize);
-			leaf.setAverageY(rightAvgY);
-		} else {
-			BranchingNode n_daughter = new BranchingNode("node@" + nextAtt.getAttributeName() + " [" + rightAvgY + "]");
-			n_daughter.setAtt(nextAtt);
-			tree.addNode(n_daughter, n);
-			n_daughter.setInstances(rightSize);
-			n_daughter.setAverageY(rightAvgY);
-			n_daughter.setAtt(nextAtt);
-			this.mrq.addLast(n_daughter);
-		}
-//        this.model.printTree(this.model.getRoot());
-        GraphWriter.writeGraph("graph.dot", tree);
+        GraphWriter.writeGraph("graph.dot", this.model);
 	}
 	
+	/**
+	 * If a node cannot be branched: add a leaf node directly under it.
+	 * 
+	 * @param motherNode The node to which a leaf node should be added.
+	 */
 	private void addLeafNode(BranchingNode motherNode) {
 		LeafNode ln = new LeafNode("leaf");
 		ln.setAverageY(motherNode.getAverageY());
 		ln.setInstances(motherNode.getInstances());
+		/* set the motherNode split to a very high value such that
+		 * we always arrive at the leaf node */ 
+		if (motherNode.getAtt().isOrdered()) {
+			OrderedSplit s = new OrderedSplit(motherNode.getAtt().getIndex());
+			s.setOrderedSplit(Double.MAX_VALUE);
+			motherNode.getAtt().setSplit(s);
+		}
 		this.model.addNode(ln, motherNode);
 	}
 	
+	/**
+	 * This is the main loop sending jobs for all features 
+	 * in the tree to Mappers/Reducers and reading/reacting 
+	 * to their output.
+	 *  
+	 * @throws Exception Global bail-out in case anything goes wrong.
+	 */
 	public void loop() throws Exception  {
 		int counter = 0;
+		// while we still have nodes to process
 		while (this.mrq.size() > 0) {
+			// output path consists of standard output path + an incrementing counter
 			String outPath = OUTPUTPATH.concat(String.valueOf(counter));
+			// get the next node to process
 			BranchingNode n = this.mrq.removeFirst();
 			System.out.println("Processing node " + n);
-			// start mr_expandNodes
+
+			// start and wait for hadoop job: mr_expandNodes
 			ExpandNodesController contr = new ExpandNodesController(n.getAtt().getIndex(),n.getNodeIndex(), model);
-			// read results and determine best split for node
 			contr.run(new String[]{"test", outPath});
-			// add the split information to the model file
+
+			// read results and determine best split for node
 			OutputReader reader = new OutputReader();
 			Map<Integer, BestModel> models = reader.readBestModels(outPath, model);
 			counter += 1;
+			/*
+			 *  if no best split could be determined: add a leaf node directly under the node
+			 */
 			if (models == null) {
 				this.addLeafNode(n);
 				continue;
 			}
 				
 			for (BestModel model : models.values()) {
-				this.addResult(this.model, model);
+				this.addResult(model);
 			}
 		}
 
 	}
 
-    public void deleteReducerOutput() {
-        File outputDir = new File("./test_out/");
-        if (!outputDir.exists())
-            return;
-        for (File outputFile : outputDir.listFiles()) {
-            outputFile.delete();
-        }
-        System.out.println(outputDir.delete());
-        System.out.println("Output dir deleted");
-    }
-	
+	/**
+	 * Starts the learning job by reading feature specs 
+	 * and kicking off the learning process.
+	 * @throws Exception In case anything goes wrong: abort everything.
+	 */
 	public void startJob() throws Exception {
-        this.deleteReducerOutput();
 		this.model = createInitialModel();
-		this.model.printTree(this.model.getRoot());
 		loop();
+		// serialize the final model
+	    Serializer.serializeModelToFile(model);
 	}
 	
-	@Override
-	public void run() {
-		super.run();
-	}
 	
 	public static void main(String[] args) throws Exception {
 		MainControllerThread thread = new MainControllerThread();

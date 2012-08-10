@@ -5,28 +5,45 @@ import de.uniheidelberg.cl.advprog.planet.structures.BestModel;
 public class NodeFactory {
 
 	
-	private Node getNode(double instanceNum, Attribute nextAtt) {
+	private Node getNode(double instanceNum, double avgY, Attribute nextAtt) {
 		Node n;
-		if (instanceNum < 1) {
+		if (instanceNum < 5) {
+			/*
+			 * Less than 5 instances: add a leaf node.
+			 */
 			n = new LeafNode("leaf");
-			n.setInstances(instanceNum);
 		} else {
-//			Attribute nextAtt = this.features.poll();
+			/*
+			 * Add a new branching node with the next feature.
+			 */
 			n = new BranchingNode("node@" + nextAtt.getAttributeName());
 			((BranchingNode) n).setAtt(nextAtt);
 			n.setInstances(instanceNum);
 		}
+		n.setInstances(instanceNum);
+		n.setAverageY(avgY);
 		return n;
 	}
 	
 	
-	public Node[] getNextNodes(BestModel model, BranchingNode mother) {
+	/**
+	 * Processes the best model and adds two new nodes to a mother node.
+	 * 
+	 * @param model The best model.
+	 * @param mother The mother node under which two new models should be added.
+	 * @param nextAtt The next attribute to be processed.
+	 * @return Two daugther nodes under the moder node.
+	 */
+	public Node[] expandNode(BestModel model, BranchingNode mother, Attribute nextAtt) {
 		Node[] nodes = new Node[2];
 		mother.getAtt().setSplit(model.getBestSplit());
 		double leftSize = model.getLeftBranchInstances();
+		double leftAvgY = model.getBestSplit().getLeftBranchY() / leftSize;
 		double rightSize = model.getRightBranchInstances();
-		nodes[0] = this.getNode(leftSize);
-		nodes[1] = this.getNode(rightSize);
+		double rightAvgY = model.getBestSplit().getRightBranchY() / rightSize;
+
+		nodes[0] = this.getNode(leftSize, leftAvgY, nextAtt);
+		nodes[1] = this.getNode(rightSize, rightAvgY, nextAtt);
 		return nodes;
 	}
 	

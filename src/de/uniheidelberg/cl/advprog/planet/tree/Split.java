@@ -2,30 +2,74 @@ package de.uniheidelberg.cl.advprog.planet.tree;
 
 import java.io.Serializable;
 
-public class Split implements Serializable, Splittable {
+/**
+ * Models a split for an Attribute.
+ * 
+ * @author boegel
+ *
+ */
+public class Split implements Serializable {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -7173846856166158003L;
+	
+	/**
+	 * Feature index.
+	 */
 	private int feature;
+	/**
+	 * Node of this split.
+	 */
 	private Node node;
+	/**
+	 * Specifies whether this split splits an ordered attribute.
+	 */
 	private boolean isOrdered;
+	/**
+	 * Number of instances in the left branch.
+	 */
 	private int leftBranchInstances;
+	/**
+	 * Average y value in the left branch.
+	 */
 	private double leftBranchY;
+	/**
+	 * Number of instances in the right branch.
+	 */
 	private int rightBranchInstances;
+	/**
+	 * Average y value in the right branch.
+	 */
 	private double rightBranchY;
 	
+	/**
+	 * Split type
+	 * @author boegel
+	 *
+	 */
 	public enum SPLITTYPE {
 		ORDERED,CATEGORIAL;
 	}
 	
+	/**
+	 * Branch to which an instance is assigned.
+	 * @author boegel
+	 *
+	 */
 	public enum BRANCH {
 		LEFT,RIGHT;
 	}
 	
 	private SPLITTYPE type;
 	
+	/**
+	 * Creates a new Split.
+	 * 
+	 * @param type {@link SPLITTYPE} of the split.
+	 * @param feature Feature index of this split.
+	 */
 	public Split(SPLITTYPE type, int feature) {
 		this.type = type;
 		this.feature = feature;
@@ -63,7 +107,7 @@ public class Split implements Serializable, Splittable {
 		return feature;
 	}
 	public String getHadoopString() {
-		return "";
+		return String.valueOf(this.hashCode());
 	}
 	public int getLeftBranchInstances() {
 		return leftBranchInstances;
@@ -84,7 +128,6 @@ public class Split implements Serializable, Splittable {
 		return this.getSplitId();
 	}
 	
-	@Override
 	public BRANCH getBranchForValue(double value) {
 		return BRANCH.LEFT;
 	}
