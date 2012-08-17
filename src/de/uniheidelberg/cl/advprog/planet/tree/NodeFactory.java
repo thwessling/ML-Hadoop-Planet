@@ -7,7 +7,7 @@ public class NodeFactory {
 	
 	private Node getNode(double instanceNum, double avgY, Attribute nextAtt) {
 		Node n;
-		if (instanceNum < 5) {
+		if (instanceNum < 20) {
 			/*
 			 * Less than 5 instances: add a leaf node.
 			 */
@@ -18,7 +18,6 @@ public class NodeFactory {
 			 */
 			n = new BranchingNode("node@" + nextAtt.getAttributeName());
 			((BranchingNode) n).setAtt(nextAtt);
-			n.setInstances(instanceNum);
 		}
 		n.setInstances(instanceNum);
 		n.setAverageY(avgY);

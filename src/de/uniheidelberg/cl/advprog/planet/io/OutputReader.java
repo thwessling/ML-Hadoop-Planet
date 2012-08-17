@@ -8,6 +8,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
 import org.apache.log4j.Priority;
 
@@ -32,7 +35,7 @@ public class OutputReader {
 	 * @author boegel
 	 *
 	 */
-	private class ModelFilter implements FilenameFilter {
+	public class ModelFilter implements FilenameFilter {
 		@Override
 		public boolean accept(File dir, String name) {
 			return name.startsWith("bestModel");
@@ -45,7 +48,7 @@ public class OutputReader {
 	 * @author boegel
 	 *
 	 */
-	private class BranchCountFilter implements FilenameFilter {
+	public class BranchCountFilter implements FilenameFilter {
 		@Override
 		public boolean accept(File dir, String name) {
 			return name.startsWith("branchCounts");
@@ -104,6 +107,10 @@ public class OutputReader {
 	 */
 	public Map<Integer, BestModel> readBestModels(String outputPath, DecisionTree model) throws IOException {
 		Map<Integer, BestModel> node2Model = new HashMap<Integer, BestModel>();
+		/* Copy the reducer output to the local file system */
+		FileSystem fs = FileSystem.get(new Configuration());
+		fs.copyToLocalFile(true,new Path(outputPath), new Path("./"));
+
 		// iterate over the output of all reducers
 		for (String fn : new File(outputPath).list(new ModelFilter())) {
 			BufferedReader br = new BufferedReader(new FileReader(new File(outputPath, fn)));

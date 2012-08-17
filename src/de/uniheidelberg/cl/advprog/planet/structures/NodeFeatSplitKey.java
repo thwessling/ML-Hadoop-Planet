@@ -1,4 +1,4 @@
-package de.uniheidelberg.cl.advprog.planet.expandNodes;
+package de.uniheidelberg.cl.advprog.planet.structures;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -6,7 +6,6 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.WritableComparable;
 
-import de.uniheidelberg.cl.advprog.planet.structures.FourValueTuple;
 
 public class NodeFeatSplitKey implements WritableComparable<NodeFeatSplitKey> {
 

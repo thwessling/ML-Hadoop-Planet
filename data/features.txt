@@ -1,5 +1,10 @@
-outlook:0;1;2
-temperature:64-85
-humidity:64-96
-windy:0-1
-play:0-1
+clump_size:1-10
+uniformity_size:1-10
+uniformity_shape:1-10
+marginal_adhesion:1-10
+epithelial_size:1-10
+bare_nuclei:1-10
+chromatin:1-10
+nucleoli:1-10
+mitoses:1-10
+class:0;1

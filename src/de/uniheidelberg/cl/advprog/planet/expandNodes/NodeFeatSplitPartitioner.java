@@ -4,6 +4,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Partitioner;
 
 import de.uniheidelberg.cl.advprog.planet.structures.FourValueTuple;
+import de.uniheidelberg.cl.advprog.planet.structures.NodeFeatSplitKey;
 
 public class NodeFeatSplitPartitioner implements Partitioner<NodeFeatSplitKey, FourValueTuple> {
 	@Override

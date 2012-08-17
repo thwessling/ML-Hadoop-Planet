@@ -7,7 +7,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import de.uniheidelberg.cl.advprog.graph.GraphWriter;
 import de.uniheidelberg.cl.advprog.planet.expandNodes.ExpandNodesController;
 import de.uniheidelberg.cl.advprog.planet.io.InstanceReader;
 import de.uniheidelberg.cl.advprog.planet.io.OutputReader;
@@ -32,7 +31,7 @@ import de.uniheidelberg.cl.advprog.planet.tree.OrderedSplit;
  */
 public class MainControllerThread {
 
-	private static final String OUTPUTPATH = "test_out_";
+	private static final String OUTPUTPATH = "planet_train_out";
 	
 	/**
 	 * Decision tree model.
@@ -92,19 +91,19 @@ public class MainControllerThread {
 
 		// add new nodes to the mother node depending on the best model
 		NodeFactory factory = new NodeFactory();
-		Attribute nextAtt = this.model.getAttributeByIdx(n.getAtt().getIndex()+1);
-		Node[] daughters = factory.expandNode(model, n, nextAtt);
-		
-		for (Node d : daughters) {
-			this.model.addNode(d, n);
-			if (!d.isLeaf()) {
-				/*
-				 * if this is not a leaf: add it to the queue of processable nodes
-				 */
-				this.mrq.addLast((BranchingNode) d);
-			}
+		if (n.getAtt().getIndex() == this.model.getAttributeSet().size()-2) {
+			this.addLeafNode(n);
+		} else {
+			Attribute nextAtt = this.model.getAttributeByIdx(n.getAtt().getIndex()+1);
+			Node[] daughters = factory.expandNode(model, n, nextAtt);
+			
+			// only add nodes if they are not leafNodes
+				for (Node d : daughters) {
+					this.model.addNode(d, n);
+					if (! d.isLeaf())
+						this.mrq.addLast((BranchingNode) d);
+				}
 		}
-        GraphWriter.writeGraph("graph.dot", this.model);
 	}
 	
 	/**
@@ -145,7 +144,7 @@ public class MainControllerThread {
 
 			// start and wait for hadoop job: mr_expandNodes
 			ExpandNodesController contr = new ExpandNodesController(n.getAtt().getIndex(),n.getNodeIndex(), model);
-			contr.run(new String[]{"test", outPath});
+			contr.run(new String[]{"planet_train", outPath});
 
 			// read results and determine best split for node
 			OutputReader reader = new OutputReader();
