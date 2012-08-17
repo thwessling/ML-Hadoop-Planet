@@ -10,10 +10,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.filecache.DistributedCache;
 
 import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
 
@@ -77,14 +77,13 @@ public class Serializer {
 		URI[] cacheFiles = DistributedCache.getCacheFiles(conf);
 		FileSystem fileSystem = FileSystem.get(conf);
         if (null != cacheFiles && cacheFiles.length > 0) {
-        	System.out.println("We've got paths");
         	for (URI cachePath : cacheFiles) {
         		if (cachePath.getPath().equals(HDFS_MODEL_PATH)) {
         			FSDataInputStream in = fileSystem.open(new Path(cachePath));
         			return loadTree(in);
 	          }
 	        }
-	      } else { System.out.println("We dont have paths"); }
+	      } 
         return null;
 	}
 	

@@ -171,7 +171,8 @@ public class DecisionTree implements Serializable {
 		// go down the tree up to featureIdx
 		for (int i = 0; i < featureIdx ; i++) {
 			if (motherNode.getAtt().getIndex() == i) {
-				if (motherNode.getAtt().getSplit().getBranchForValue(featureValues[i]).equals(BRANCH.LEFT)) {
+				if (motherNode.getAtt().getSplit().getBranchForValue(featureValues[i]).equals(BRANCH.LEFT) || 
+						motherNode.getDaughters().size() == 1) {
 					// go down left branch
 					Node leftBranchTarget = motherNode.getDaughters().get(0);
 					if (leftBranchTarget.isLeaf())

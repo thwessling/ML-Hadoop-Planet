@@ -17,6 +17,7 @@ import org.apache.hadoop.mapred.lib.MultipleOutputs;
 
 
 import de.uniheidelberg.cl.advprog.planet.structures.FourValueTuple;
+import de.uniheidelberg.cl.advprog.planet.structures.NodeFeatSplitKey;
 import de.uniheidelberg.cl.advprog.planet.tree.UnorderedSplit;
 
 

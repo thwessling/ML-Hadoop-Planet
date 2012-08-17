@@ -14,6 +14,7 @@ import org.apache.hadoop.util.Tool;
 
 import de.uniheidelberg.cl.advprog.planet.io.Serializer;
 import de.uniheidelberg.cl.advprog.planet.structures.FourValueTuple;
+import de.uniheidelberg.cl.advprog.planet.structures.NodeFeatSplitKey;
 import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
 
 /**
@@ -28,11 +29,9 @@ import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
  */
 public class ExpandNodesController  extends Configured implements Tool{
 
-	
 	private int featureIndex;
 	private DecisionTree tree;
 	private int nodeIndex;
-	
 	
 	/**
 	 * Instantiates a new {@link ExpandNodesController} for a new job.
@@ -48,7 +47,6 @@ public class ExpandNodesController  extends Configured implements Tool{
 	}
 	
 
-	@Override
 	public int run(String[] args) throws Exception {
 		JobClient client = new JobClient();
 		JobConf job = new JobConf();
@@ -56,14 +54,17 @@ public class ExpandNodesController  extends Configured implements Tool{
 	    Serializer.serializeModelToDFS(tree, job);
 
 	    // specify output types
-	    job.setJobName("decision_tree");
+	    job.setJobName("ExpandNode@" + this.nodeIndex + "@" + this.featureIndex);
 	    // set configuration options for mappers
 	    job.set("FeatureIndex", String.valueOf(this.featureIndex));
 	    job.set("NodeIndex", String.valueOf(this.nodeIndex));
         job.setMapperClass(ExpandNodesMapper.class);
         job.setMapOutputKeyClass(NodeFeatSplitKey.class);
         job.setMapOutputValueClass(FourValueTuple.class);
-
+        job.setJarByClass(ExpandNodesController.class);
+        job.setNumMapTasks(10);
+        job.setNumReduceTasks(10);
+        job.setPartitionerClass(NodeFeatSplitPartitioner.class);
         job.setReducerClass(ExpandNodesReducer.class);
 	    
         // add two named outputs

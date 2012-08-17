@@ -17,6 +17,7 @@ import org.apache.hadoop.mapred.Reporter;
 
 import de.uniheidelberg.cl.advprog.planet.io.Serializer;
 import de.uniheidelberg.cl.advprog.planet.structures.FourValueTuple;
+import de.uniheidelberg.cl.advprog.planet.structures.NodeFeatSplitKey;
 import de.uniheidelberg.cl.advprog.planet.tree.BranchingNode;
 import de.uniheidelberg.cl.advprog.planet.tree.DecisionTree;
 import de.uniheidelberg.cl.advprog.planet.tree.Split;
