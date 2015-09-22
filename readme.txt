@@ -1,3 +1,7 @@
+Massively parallelized growing of random decision trees for machine learning using Hadoop.
+
+
+
 *************************
 Building
 *************************
